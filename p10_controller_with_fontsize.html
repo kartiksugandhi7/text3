@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P10 LED Matrix Controller - 5 Panel Hub12</title>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+  <!-- Firebase App & Database (v8 compat for quick CDN plug-and-play) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-card: #131926;
+      --bg-input: #1a2234;
+      --accent: #ff4500; /* P10 Red LED style */
+      --accent-glow: rgba(255, 69, 0, 0.4);
+      --accent-secondary: #00e5ff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-color: #273449;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 850px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700;
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+      color: var(--accent);
+      text-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-card);
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      font-size: 0.85rem;
+    }
+
+    .btn-logout {
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.9rem;
+      padding: 4px;
+      transition: transform 0.2s;
+    }
+    .btn-logout:hover { transform: scale(1.15); }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .card-title {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent-secondary);
+    }
+
+    /* Auth Modal / Card */
+    .auth-container {
+      max-width: 440px;
+      margin: 60px auto;
+      text-align: center;
+    }
+
+    .auth-container h2 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      color: var(--accent);
+      text-shadow: 0 0 15px var(--accent-glow);
+    }
+
+    .auth-container p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 24px;
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    /* LED Simulator Preview */
+    .led-preview-wrapper {
+      background: #000;
+      border: 3px solid #1f2937;
+      border-radius: 8px;
+      padding: 10px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 20px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(255, 69, 0, 0.15);
+    }
+
+    .led-banner-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-bottom: 6px;
+      font-family: 'Chakra Petch', monospace;
+    }
+
+    .led-display-screen {
+      width: 100%;
+      height: 64px;
+      background: #030303;
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      background-image: radial-gradient(#1a1a1a 15%, transparent 16%);
+      background-size: 6px 6px;
+    }
+
+    .led-scrolling-text {
+      position: absolute;
+      white-space: nowrap;
+      font-family: 'Chakra Petch', monospace;
+      font-size: 32px;
+      font-weight: 700;
+      color: #ff3300;
+      text-shadow: 0 0 8px #ff3300, 0 0 16px rgba(255, 51, 0, 0.6);
+      letter-spacing: 2px;
+      will-change: transform;
+      transition: font-size 0.15s ease-out;
+    }
+
+    /* Sliders Grid */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 640px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    .slider-box {
+      background: var(--bg-input);
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .slider-header span {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .slider-val {
+      font-family: 'Chakra Petch', monospace;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* Message Sequence List */
+    .msg-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .msg-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-drag-idx {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .msg-input {
+      flex: 1;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-main);
+      padding: 6px 10px;
+      font-size: 0.95rem;
+      border-radius: 6px;
+    }
+    .msg-input:focus {
+      background: #0f1624;
+      border-color: var(--accent-secondary);
+    }
+
+    .msg-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      background: #222d42;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: #2d3c58;
+      color: var(--text-main);
+    }
+
+    .btn-icon.delete:hover {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ff4500, #ff6b3d);
+      color: #fff;
+      box-shadow: 0 4px 15px var(--accent-glow);
+    }
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #1f293d;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: #28354f;
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-left: 5px solid var(--accent);
+      padding: 14px 20px;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 1000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= AUTH SECTION ================= -->
+  <div id="authSection" class="container auth-container">
+    <div class="card">
+      <div style="font-size: 2.5rem; color: var(--accent); margin-bottom: 12px;">
+        <i class="fa-solid fa-lock"></i>
+      </div>
+      <h2>P10 HUB12 DISPLAY</h2>
+      <p style="color: var(--accent-secondary); font-weight: 500; margin-bottom: 16px;">
+        <i class="fa-solid fa-shield-halved"></i> Website Password Protected
+      </p>
+      
+      <div style="background: rgba(255, 69, 0, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; color: #ff9977;">
+        <i class="fa-solid fa-user-shield"></i> Authorized User:<br>
+        <strong style="color: #fff; font-size: 0.95rem;">kartiksugandhi7@gmail.com</strong>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label><i class="fa-solid fa-envelope"></i> Email Address</label>
+          <input type="email" id="loginEmail" value="kartiksugandhi7@gmail.com" required readonly style="opacity: 0.9; cursor: not-allowed; background: #111827;" />
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-key"></i> Website Password</label>
+          <input type="password" id="loginPassword" required placeholder="Enter password to unlock" autocomplete="current-password" autofocus />
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
+          <input type="checkbox" id="rememberMe" checked style="accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px;" />
+          <label for="rememberMe" style="cursor: pointer; margin: 0; color: var(--text-muted);">Stay logged in on this device</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">
+          <i class="fa-solid fa-unlock-keyhole"></i> Unlock Dashboard
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DASHBOARD SECTION ================= -->
+  <div id="dashboardSection" class="container hidden">
+    <!-- Header -->
+    <header>
+      <div class="logo">
+        <i class="fa-solid fa-display"></i>
+        <span>P10 5-PANEL CONTROLLER</span>
+      </div>
+      <div class="user-pill">
+        <i class="fa-solid fa-user-circle" style="color: var(--accent);"></i>
+        <span id="userEmailBadge">user@email.com</span>
+        <button class="btn-logout" id="btnLogout" title="Log Out">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Real-Time LED Display Preview Simulation -->
+    <div class="card" style="padding: 16px;">
+      <div class="led-preview-wrapper">
+        <div class="led-banner-info">
+          <span><i class="fa-solid fa-satellite-dish"></i> LIVE HARDWARE PREVIEW (5 PANELS: 160 x 16 px)</span>
+          <span id="previewStatus">Sequence Running...</span>
+        </div>
+        <div class="led-display-screen" id="ledScreen">
+          <div class="led-scrolling-text" id="ledText">Initializing display...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timing & Speed Configuration -->
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Display Speed & Interval Settings</span>
+      </div>
+      <div class="controls-grid">
+        <!-- Scroll Speed Slider -->
+        <div class="slider-box">
+          <div class="slider-header">
+            <span><i class="fa-solid fa-gauge-high"></i> Scrolling Speed</span>
+            <span class="slider-val" id="speedVal">25 ms</span>
+          </div>
+          <input type="range" id="speedSlider" min="10" max="80" value="25" step="5" />
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+            <span>Fast (10ms)</span>
+            <span>Balanced (25ms)</span>
+            <span>Slow (80ms)</span>
+          </div>
+        </div>
+
+        <!-- Delay Between Sentences Slider -->
+        <div class="slider-box">
+          <div class="slider-header">
+            <span><i class="fa-solid fa-hourglass-half"></i> Delay Between Sentences</span>
+            <span class="slider-val" id="delayVal">2.0 s</span>
+          </div>
+          <input type="range" id="delaySlider" min="0" max="10" value="2" step="0.5" />
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+            <span>No Delay (0s)</span>
+            <span>Normal (2-3s)</span>
+            <span>Long (10s)</span>
+          </div>
+        </div>
+
+        <!-- Font Size Slider -->
+        <div class="slider-box">
+          <div class="slider-header">
+            <span><i class="fa-solid fa-text-height"></i> Font Size</span>
+            <span class="slider-val" id="fontSizeVal">5 / 10</span>
+          </div>
+          <input type="range" id="fontSizeSlider" min="1" max="10" value="5" step="1" />
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+            <span>Tiny (1)</span>
+            <span>Default (5)</span>
+            <span>Huge (10)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multiple Sentences in Sequence -->
+    <div class="card">
+      <div class="card-title" style="justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-list-ol"></i>
+          <span>Sentence Sequence (Scrolls in order)</span>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-muted);" id="msgCountBadge">3 sentences</span>
+      </div>
+
+      <div class="msg-list" id="msgListContainer">
+        <!-- Dynamic message rows will be inserted here -->
+      </div>
+
+      <button class="btn btn-secondary" id="btnAddSentence" style="width: 100%; margin-bottom: 20px;">
+        <i class="fa-solid fa-plus"></i> Add New Sentence
+      </button>
+
+      <!-- Save Button -->
+      <button class="btn btn-primary btn-block" id="btnSaveFirebase" style="font-size: 1.05rem; padding: 14px;">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Update & Push to LED Display
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div class="toast" id="toast">
+    <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.2rem;"></i>
+    <span id="toastMsg">Changes updated successfully!</span>
+  </div>
+
+  <script>
+    /* ================================================================
+       FIREBASE CONFIGURATION
+       NOTE: Replace the credentials below with your Firebase Project Config
+       ================================================================ */
+    const firebaseConfig = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase Realtime Database
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    // DOM Elements
+    const authSection = document.getElementById("authSection");
+    const dashboardSection = document.getElementById("dashboardSection");
+    const loginForm = document.getElementById("loginForm");
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    const rememberMe = document.getElementById("rememberMe");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnLogout = document.getElementById("btnLogout");
+    const userEmailBadge = document.getElementById("userEmailBadge");
+
+    // ================================================================
+    // WEBSITE ACCESS CREDENTIALS (LOCK ONLY FOR WEBSITE)
+    // ================================================================
+    const AUTHORIZED_CREDENTIALS = {
+      email: "kartiksugandhi7@gmail.com",
+      password: "8626052234@Kartik"
+    };
+
+    const speedSlider = document.getElementById("speedSlider");
+    const speedVal = document.getElementById("speedVal");
+    const delaySlider = document.getElementById("delaySlider");
+    const delayVal = document.getElementById("delayVal");
+    const fontSizeSlider = document.getElementById("fontSizeSlider");
+    const fontSizeVal = document.getElementById("fontSizeVal");
+    const msgListContainer = document.getElementById("msgListContainer");
+    const msgCountBadge = document.getElementById("msgCountBadge");
+    const btnAddSentence = document.getElementById("btnAddSentence");
+    const btnSaveFirebase = document.getElementById("btnSaveFirebase");
+
+    const ledScreen = document.getElementById("ledScreen");
+    const ledText = document.getElementById("ledText");
+    const previewStatus = document.getElementById("previewStatus");
+
+    // Local State
+    let messagesState = [
+      "WELCOME TO OUR DIGITAL HUB",
+      "SPECIAL OFFER 50% OFF TODAY",
+      "THANK YOU FOR VISITING US"
+    ];
+    let scrollSpeedMs = 25;
+    let delayBetweenSec = 2;
+    let fontSizeLevel = 5; // 1 (tiny) - 10 (huge)
+
+    // Simulation animation state
+    let simIndex = 0;
+    let simPos = 0;
+    let simTimer = null;
+    let simState = "SCROLL"; // "SCROLL" or "DELAY"
+
+    // Maps the 1-10 slider level to a pixel size for the WEB preview only.
+    // Level 5 = 32px, matching the original hardcoded preview size.
+    function fontLevelToPreviewPx(level) {
+      return 16 + (level - 1) * 4; // 1->16px ... 5->32px ... 10->52px
+    }
+
+    function applyFontSizePreview() {
+      ledText.style.fontSize = fontLevelToPreviewPx(fontSizeLevel) + "px";
+    }
+
+    /* ================================================================
+       WEBSITE PASSWORD PROTECTION (CLIENT-SIDE AUTHENTICATION)
+       ================================================================ */
+    loginForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const enteredEmail = loginEmail.value.trim().toLowerCase();
+      const enteredPassword = loginPassword.value;
+
+      // Verify email and password
+      if (
+        enteredEmail === AUTHORIZED_CREDENTIALS.email.toLowerCase() &&
+        enteredPassword === AUTHORIZED_CREDENTIALS.password
+      ) {
+        // Unlock website
+        if (rememberMe && rememberMe.checked) {
+          localStorage.setItem("p10_web_auth", "unlocked");
+        } else {
+          sessionStorage.setItem("p10_web_auth", "unlocked");
+        }
+
+        unlockDashboard();
+        showToast("Welcome Kartik! Website unlocked.");
+      } else {
+        showToast("Access Denied: Incorrect Password!", true);
+        loginPassword.value = "";
+        loginPassword.focus();
+      }
+    });
+
+    btnLogout.addEventListener("click", () => {
+      localStorage.removeItem("p10_web_auth");
+      sessionStorage.removeItem("p10_web_auth");
+      lockDashboard();
+      showToast("Website locked successfully.");
+    });
+
+    function unlockDashboard() {
+      authSection.classList.add("hidden");
+      dashboardSection.classList.remove("hidden");
+      userEmailBadge.textContent = AUTHORIZED_CREDENTIALS.email;
+      loadConfigFromFirebase();
+    }
+
+    function lockDashboard() {
+      authSection.classList.remove("hidden");
+      dashboardSection.classList.add("hidden");
+      loginPassword.value = "";
+      if (simTimer) clearInterval(simTimer);
+    }
+
+    // Check saved unlock state on page load
+    function checkAuthOnLoad() {
+      const isUnlocked =
+        localStorage.getItem("p10_web_auth") === "unlocked" ||
+        sessionStorage.getItem("p10_web_auth") === "unlocked";
+
+      if (isUnlocked) {
+        unlockDashboard();
+      } else {
+        lockDashboard();
+      }
+    }
+
+    // Trigger check immediately
+    checkAuthOnLoad();
+
+    /* ================================================================
+       DATA LOAD & SAVE TO FIREBASE
+       ================================================================ */
+    function loadConfigFromFirebase() {
+      db.ref("p10_config").once("value", (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          if (Array.isArray(val.messages) && val.messages.length > 0) {
+            messagesState = val.messages;
+          }
+          if (val.speed) {
+            scrollSpeedMs = parseInt(val.speed);
+            speedSlider.value = scrollSpeedMs;
+            speedVal.textContent = scrollSpeedMs + " ms";
+          }
+          if (val.delayBetween !== undefined) {
+            delayBetweenSec = parseFloat(val.delayBetween) / 1000;
+            delaySlider.value = delayBetweenSec;
+            delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
+          }
+          if (val.fontSize !== undefined) {
+            fontSizeLevel = Math.min(10, Math.max(1, parseInt(val.fontSize)));
+            fontSizeSlider.value = fontSizeLevel;
+            fontSizeVal.textContent = fontSizeLevel + " / 10";
+          }
+        }
+        renderMessageList();
+        applyFontSizePreview();
+        restartSimulation();
+        showToast("Display data synchronized with Firebase.");
+      }, (error) => {
+        console.error("Firebase read error:", error);
+        renderMessageList();
+        applyFontSizePreview();
+        restartSimulation();
+      });
+    }
+
+    async function saveToFirebase() {
+      // Collect valid non-empty messages
+      const inputs = msgListContainer.querySelectorAll(".msg-input");
+      const updatedMessages = [];
+      inputs.forEach((inp) => {
+        const val = inp.value.trim();
+        if (val.length > 0) {
+          updatedMessages.push(val);
+        }
+      });
+
+      if (updatedMessages.length === 0) {
+        showToast("Please enter at least one sentence!", true);
+        return;
+      }
+
+      messagesState = updatedMessages;
+      scrollSpeedMs = parseInt(speedSlider.value);
+      delayBetweenSec = parseFloat(delaySlider.value);
+      fontSizeLevel = parseInt(fontSizeSlider.value);
+
+      const payload = {
+        speed: scrollSpeedMs,
+        delayBetween: Math.round(delayBetweenSec * 1000), // convert to ms for ESP8266
+        fontSize: fontSizeLevel, // 1-10, mapped to a bitmap font on the ESP8266 side
+        messages: messagesState,
+        lastUpdated: Date.now()
+      };
+
+      btnSaveFirebase.disabled = true;
+      btnSaveFirebase.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Firebase...';
+
+      try {
+        await db.ref("p10_config").set(payload);
+        showToast("Sent to ESP8266 & P10 Display successfully!");
+        restartSimulation();
+      } catch (err) {
+        showToast("Failed to save: " + err.message, true);
+      } finally {
+        btnSaveFirebase.disabled = false;
+        btnSaveFirebase.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Update & Push to LED Display';
+      }
+    }
+
+    btnSaveFirebase.addEventListener("click", saveToFirebase);
+
+    /* ================================================================
+       UI INTERACTIONS & SLIDERS
+       ================================================================ */
+    speedSlider.addEventListener("input", (e) => {
+      scrollSpeedMs = parseInt(e.target.value);
+      speedVal.textContent = scrollSpeedMs + " ms";
+      restartSimulation();
+    });
+
+    delaySlider.addEventListener("input", (e) => {
+      delayBetweenSec = parseFloat(e.target.value);
+      delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
+    });
+
+    fontSizeSlider.addEventListener("input", (e) => {
+      fontSizeLevel = parseInt(e.target.value);
+      fontSizeVal.textContent = fontSizeLevel + " / 10";
+      applyFontSizePreview();
+    });
+
+    btnAddSentence.addEventListener("click", () => {
+      messagesState.push("NEW SENTENCE " + (messagesState.length + 1));
+      renderMessageList();
+    });
+
+    function renderMessageList() {
+      msgListContainer.innerHTML = "";
+      messagesState.forEach((msg, idx) => {
+        const row = document.createElement("div");
+        row.className = "msg-item";
+        row.innerHTML = `
+          <div class="msg-drag-idx">#${idx + 1}</div>
+          <input type="text" class="msg-input" value="${escapeHtml(msg)}" placeholder="Enter sentence..." />
+          <div class="msg-actions">
+            <button class="btn-icon" title="Move Up" onclick="moveSentence(${idx}, -1)" ${idx === 0 ? "disabled style='opacity:0.4;'" : ""}>
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn-icon" title="Move Down" onclick="moveSentence(${idx}, 1)" ${idx === messagesState.length - 1 ? "disabled style='opacity:0.4;'" : ""}>
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button class="btn-icon delete" title="Delete" onclick="deleteSentence(${idx})">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+
+        // Update on input change
+        const inp = row.querySelector(".msg-input");
+        inp.addEventListener("input", (e) => {
+          messagesState[idx] = e.target.value;
+        });
+
+        msgListContainer.appendChild(row);
+      });
+
+      msgCountBadge.textContent = `${messagesState.length} sentence${messagesState.length === 1 ? "" : "s"}`;
+    }
+
+    window.moveSentence = function(index, direction) {
+      const target = index + direction;
+      if (target < 0 || target >= messagesState.length) return;
+      const temp = messagesState[index];
+      messagesState[index] = messagesState[target];
+      messagesState[target] = temp;
+      renderMessageList();
+      restartSimulation();
+    };
+
+    window.deleteSentence = function(index) {
+      if (messagesState.length <= 1) {
+        showToast("You must keep at least one sentence!", true);
+        return;
+      }
+      messagesState.splice(index, 1);
+      renderMessageList();
+      restartSimulation();
+    };
+
+    function escapeHtml(text) {
+      return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    /* ================================================================
+       ANIMATED LED MATRIX SIMULATION (Matches Hardware 160x16)
+       ================================================================ */
+    function restartSimulation() {
+      if (simTimer) clearInterval(simTimer);
+      if (messagesState.length === 0) return;
+
+      simIndex = 0;
+      simState = "SCROLL";
+      const screenWidth = ledScreen.offsetWidth;
+      simPos = screenWidth;
+      ledText.textContent = messagesState[simIndex];
+      ledText.style.transform = `translateX(${simPos}px)`;
+
+      simTimer = setInterval(stepSimulation, Math.max(15, scrollSpeedMs));
+    }
+
+    function stepSimulation() {
+      if (messagesState.length === 0) return;
+
+      if (simState === "SCROLL") {
+        simPos -= 2; // move 2px per step in web preview
+        ledText.style.transform = `translateX(${simPos}px)`;
+
+        const textWidth = ledText.offsetWidth;
+        if (simPos < -textWidth) {
+          // Transition to delay state
+          simState = "DELAY";
+          previewStatus.textContent = `Sentence #${simIndex + 1} finished. Waiting ${delayBetweenSec.toFixed(1)}s delay...`;
+
+          setTimeout(() => {
+            // Next sentence
+            simIndex = (simIndex + 1) % messagesState.length;
+            ledText.textContent = messagesState[simIndex];
+            simPos = ledScreen.offsetWidth;
+            ledText.style.transform = `translateX(${simPos}px)`;
+            simState = "SCROLL";
+            previewStatus.textContent = `Scrolling Sentence #${simIndex + 1} of ${messagesState.length}`;
+          }, delayBetweenSec * 1000);
+        }
+      }
+    }
+
+    /* ================================================================
+       TOAST UTILITY
+       ================================================================ */
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMsg");
+      toastMsg.textContent = msg;
+
+      const icon = toast.querySelector("i");
+      if (isError) {
+        toast.style.borderLeftColor = "var(--danger)";
+        icon.className = "fa-solid fa-triangle-exclamation";
+        icon.style.color = "var(--danger)";
+      } else {
+        toast.style.borderLeftColor = "var(--accent)";
+        icon.className = "fa-solid fa-circle-check";
+        icon.style.color = "var(--success)";
+      }
+
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+  </script>
+</body>
+</html>
