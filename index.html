@@ -4,13 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>P10 LED Matrix Controller - 5 Panel Hub12</title>
-  <!-- Google Fonts & Font Awesome Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-  <!-- Firebase App & Database (v8 compat for quick CDN plug-and-play) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
@@ -19,7 +17,7 @@
       --bg-primary: #0a0d14;
       --bg-card: #131926;
       --bg-input: #1a2234;
-      --accent: #ff4500; /* P10 Red LED style */
+      --accent: #ff4500;
       --accent-glow: rgba(255, 69, 0, 0.4);
       --accent-secondary: #00e5ff;
       --text-main: #f1f5f9;
@@ -27,14 +25,10 @@
       --border-color: #273449;
       --danger: #ef4444;
       --success: #10b981;
+      --warning: #f59e0b;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', sans-serif;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
     body {
       background-color: var(--bg-primary);
@@ -46,12 +40,8 @@
       padding: 16px;
     }
 
-    .container {
-      width: 100%;
-      max-width: 850px;
-    }
+    .container { width: 100%; max-width: 850px; }
 
-    /* Header */
     header {
       display: flex;
       justify-content: space-between;
@@ -59,43 +49,29 @@
       padding: 16px 0;
       border-bottom: 1px solid var(--border-color);
       margin-bottom: 24px;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 12px;
       font-family: 'Chakra Petch', sans-serif;
-      font-weight: 700;
-      font-size: 1.4rem;
-      letter-spacing: 1px;
-      color: var(--accent);
-      text-shadow: 0 0 12px var(--accent-glow);
+      font-weight: 700; font-size: 1.4rem; letter-spacing: 1px;
+      color: var(--accent); text-shadow: 0 0 12px var(--accent-glow);
     }
 
     .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg-card);
-      padding: 6px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--border-color);
-      font-size: 0.85rem;
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card); padding: 6px 14px;
+      border-radius: 999px; border: 1px solid var(--border-color); font-size: 0.85rem;
     }
 
     .btn-logout {
-      background: none;
-      border: none;
-      color: var(--danger);
-      cursor: pointer;
-      font-size: 0.9rem;
-      padding: 4px;
-      transition: transform 0.2s;
+      background: none; border: none; color: var(--danger);
+      cursor: pointer; font-size: 0.9rem; padding: 4px; transition: transform 0.2s;
     }
     .btn-logout:hover { transform: scale(1.15); }
 
-    /* Cards */
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
@@ -107,306 +83,178 @@
 
     .card-title {
       font-family: 'Chakra Petch', sans-serif;
-      font-size: 1.15rem;
-      font-weight: 600;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--accent-secondary);
+      font-size: 1.15rem; font-weight: 600; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px; color: var(--accent-secondary);
     }
 
-    /* Auth Modal / Card */
-    .auth-container {
-      max-width: 440px;
-      margin: 60px auto;
-      text-align: center;
-    }
-
+    .auth-container { max-width: 440px; margin: 60px auto; text-align: center; }
     .auth-container h2 {
-      font-family: 'Chakra Petch', sans-serif;
-      font-size: 1.8rem;
-      margin-bottom: 8px;
-      color: var(--accent);
-      text-shadow: 0 0 15px var(--accent-glow);
+      font-family: 'Chakra Petch', sans-serif; font-size: 1.8rem; margin-bottom: 8px;
+      color: var(--accent); text-shadow: 0 0 15px var(--accent-glow);
     }
+    .auth-container p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
 
-    .auth-container p {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      margin-bottom: 24px;
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+      border-radius: 8px; padding: 12px 14px; color: var(--text-main);
+      font-size: 0.95rem; outline: none; transition: border-color 0.2s;
     }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
 
-    /* Forms */
-    .form-group {
-      margin-bottom: 16px;
-      text-align: left;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.85rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    input[type="number"] {
-      width: 100%;
-      background: var(--bg-input);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px 14px;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 8px var(--accent-glow);
-    }
-
-    /* LED Simulator Preview */
     .led-preview-wrapper {
-      background: #000;
-      border: 3px solid #1f2937;
-      border-radius: 8px;
-      padding: 10px;
-      overflow: hidden;
-      position: relative;
-      margin-bottom: 20px;
+      background: #000; border: 3px solid #1f2937; border-radius: 8px; padding: 10px;
+      overflow: hidden; position: relative; margin-bottom: 20px;
       box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(255, 69, 0, 0.15);
     }
-
     .led-banner-info {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      color: #64748b;
-      margin-bottom: 6px;
-      font-family: 'Chakra Petch', monospace;
+      display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b;
+      margin-bottom: 6px; font-family: 'Chakra Petch', monospace; gap: 8px; flex-wrap: wrap;
     }
-
     .led-display-screen {
-      width: 100%;
-      height: 64px;
-      background: #030303;
-      border-radius: 4px;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      background-image: radial-gradient(#1a1a1a 15%, transparent 16%);
-      background-size: 6px 6px;
+      width: 100%; height: 64px; background: #030303; border-radius: 4px;
+      position: relative; overflow: hidden; display: flex; align-items: center;
+      background-image: radial-gradient(#1a1a1a 15%, transparent 16%); background-size: 6px 6px;
     }
-
     .led-scrolling-text {
-      position: absolute;
-      white-space: nowrap;
-      font-family: 'Chakra Petch', monospace;
-      font-size: 32px;
-      font-weight: 700;
-      color: #ff3300;
+      position: absolute; white-space: nowrap; font-family: 'Chakra Petch', monospace;
+      font-size: 32px; font-weight: 700; color: #ff3300;
       text-shadow: 0 0 8px #ff3300, 0 0 16px rgba(255, 51, 0, 0.6);
-      letter-spacing: 2px;
-      will-change: transform;
-      transition: font-size 0.15s ease-out;
+      letter-spacing: 2px; will-change: transform;
     }
 
-    /* Sliders Grid */
-    .controls-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
+    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .controls-grid { grid-template-columns: 1fr; } }
 
-    @media (max-width: 640px) {
-      .controls-grid { grid-template-columns: 1fr; }
-    }
+    .slider-box { background: var(--bg-input); padding: 16px; border-radius: 10px; border: 1px solid var(--border-color); }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .slider-header span { font-size: 0.9rem; font-weight: 500; }
+    .slider-val { font-family: 'Chakra Petch', monospace; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
 
-    .slider-box {
-      background: var(--bg-input);
-      padding: 16px;
-      border-radius: 10px;
-      border: 1px solid var(--border-color);
-    }
-
-    .slider-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .slider-header span {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .slider-val {
-      font-family: 'Chakra Petch', monospace;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    input[type="range"] {
-      width: 100%;
-      accent-color: var(--accent);
-      cursor: pointer;
-    }
-
-    /* Message Sequence List */
-    .msg-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
+    .msg-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
     .msg-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--bg-input);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px; background: var(--bg-input);
+      border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px;
       animation: fadeIn 0.25s ease-out;
     }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .msg-drag-idx {
-      font-family: 'Chakra Petch', monospace;
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      min-width: 24px;
-      text-align: center;
-    }
-
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .msg-drag-idx { font-family: 'Chakra Petch', monospace; font-weight: 700; font-size: 0.9rem; color: var(--text-muted); min-width: 24px; text-align: center; }
     .msg-input {
-      flex: 1;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--text-main);
-      padding: 6px 10px;
-      font-size: 0.95rem;
-      border-radius: 6px;
+      flex: 1; background: transparent; border: 1px solid transparent; color: var(--text-main);
+      padding: 6px 10px; font-size: 0.95rem; border-radius: 6px;
     }
-    .msg-input:focus {
-      background: #0f1624;
-      border-color: var(--accent-secondary);
-    }
-
-    .msg-actions {
-      display: flex;
-      gap: 6px;
-    }
+    .msg-input:focus { background: #0f1624; border-color: var(--accent-secondary); }
+    .msg-actions { display: flex; gap: 6px; }
 
     .btn-icon {
-      background: #222d42;
-      border: 1px solid var(--border-color);
-      color: var(--text-muted);
-      border-radius: 6px;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s;
+      background: #222d42; border: 1px solid var(--border-color); color: var(--text-muted);
+      border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: all 0.15s;
     }
+    .btn-icon:hover { background: #2d3c58; color: var(--text-main); }
+    .btn-icon.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-    .btn-icon:hover {
-      background: #2d3c58;
-      color: var(--text-main);
-    }
-
-    .btn-icon.delete:hover {
-      background: var(--danger);
-      color: #fff;
-      border-color: var(--danger);
-    }
-
-    /* Buttons */
     .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.2s;
     }
+    .btn-primary { background: linear-gradient(135deg, #ff4500, #ff6b3d); color: #fff; box-shadow: 0 4px 15px var(--accent-glow); }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-secondary { background: #1f293d; color: var(--text-main); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { background: #28354f; }
+    .btn-block { width: 100%; }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #ff4500, #ff6b3d);
-      color: #fff;
-      box-shadow: 0 4px 15px var(--accent-glow);
+    /* ===== Device access panel ===== */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
     }
-    .btn-primary:hover {
-      opacity: 0.95;
-      transform: translateY(-1px);
-    }
+    .badge.pending  { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid var(--warning); }
+    .badge.approved { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid var(--success); }
+    .badge.denied   { background: rgba(239,68,68,0.15);  color: var(--danger);  border: 1px solid var(--danger); }
+    .badge.me       { background: rgba(0,229,255,0.12);  color: var(--accent-secondary); border: 1px solid var(--accent-secondary); }
+    .badge.admin    { background: rgba(255,69,0,0.15);   color: var(--accent); border: 1px solid var(--accent); }
 
-    .btn-secondary {
-      background: #1f293d;
-      color: var(--text-main);
-      border: 1px solid var(--border-color);
+    .device-list { display: flex; flex-direction: column; gap: 10px; }
+    .device-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      background: var(--bg-input); border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 12px 14px;
     }
-    .btn-secondary:hover {
-      background: #28354f;
+    .device-item.is-pending { border-color: var(--warning); box-shadow: 0 0 12px rgba(245,158,11,0.25); }
+    .device-info { flex: 1; min-width: 200px; }
+    .device-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .device-meta { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+    .device-actions { display: flex; gap: 6px; }
+    .btn-sm {
+      padding: 7px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; color: #fff;
     }
+    .btn-sm:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-allow  { background: var(--success); }
+    .btn-deny   { background: var(--danger); }
+    .btn-remove { background: #2d3c58; border-color: var(--border-color); color: var(--text-muted); }
+    .btn-remove:hover:not(:disabled) { color: #fff; }
 
-    .btn-block {
-      width: 100%;
-    }
+    .empty-note { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 14px; }
+    .attempt-row { font-size: 0.8rem; color: var(--text-muted); padding: 8px 0; border-bottom: 1px dashed var(--border-color); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .attempt-row:last-child { border-bottom: none; }
+    .attempt-row strong { color: var(--danger); font-weight: 600; }
 
-    /* Toast Notification */
+    .status-icon { font-size: 3rem; margin-bottom: 12px; }
+    .status-icon.pending { color: var(--warning); }
+    .status-icon.denied { color: var(--danger); }
+    .device-chip {
+      display: inline-block; background: var(--bg-input); border: 1px solid var(--border-color);
+      padding: 8px 14px; border-radius: 8px; margin: 6px 0 18px; font-weight: 600; color: #fff;
+    }
+    .pulse { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
     .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      border-left: 5px solid var(--accent);
-      padding: 14px 20px;
-      border-radius: 8px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      z-index: 1000;
-      transform: translateY(100px);
-      opacity: 0;
-      transition: all 0.3s ease;
+      position: fixed; bottom: 24px; right: 24px; background: var(--bg-card);
+      border: 1px solid var(--border-color); border-left: 5px solid var(--accent);
+      padding: 14px 20px; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      display: flex; align-items: center; gap: 12px; z-index: 1000;
+      transform: translateY(100px); opacity: 0; transition: all 0.3s ease; max-width: calc(100vw - 48px);
     }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    /* ===== Owner alert popup ===== */
+    .alert-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2000;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      backdrop-filter: blur(3px);
+    }
+    .alert-box {
+      background: var(--bg-card); border: 2px solid var(--warning); border-radius: 16px;
+      padding: 28px 24px; width: 100%; max-width: 420px; text-align: center;
+      box-shadow: 0 0 40px rgba(245,158,11,0.35);
+      animation: alertPop 0.25s ease-out;
+    }
+    @keyframes alertPop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .alert-box h3 { font-family: 'Chakra Petch', sans-serif; font-size: 1.4rem; color: var(--warning); margin-bottom: 6px; }
+    .alert-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; }
+    .alert-buttons { display: flex; gap: 12px; margin-top: 18px; }
+    .alert-buttons .btn { flex: 1; padding: 14px; font-size: 1rem; }
+    .btn-allow-big { background: var(--success); color: #fff; }
+    .btn-deny-big { background: var(--danger); color: #fff; }
 
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
+
+  <!-- ================= LOADING ================= -->
+  <div id="loadingSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+      <p style="margin:0;">Checking device access...</p>
+    </div>
+  </div>
 
   <!-- ================= AUTH SECTION ================= -->
   <div id="authSection" class="container auth-container">
@@ -416,9 +264,9 @@
       </div>
       <h2>P10 HUB12 DISPLAY</h2>
       <p style="color: var(--accent-secondary); font-weight: 500; margin-bottom: 16px;">
-        <i class="fa-solid fa-shield-halved"></i> Website Password Protected
+        <i class="fa-solid fa-shield-halved"></i> Password + Device Approval
       </p>
-      
+
       <div style="background: rgba(255, 69, 0, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; color: #ff9977;">
         <i class="fa-solid fa-user-shield"></i> Authorized User:<br>
         <strong style="color: #fff; font-size: 0.95rem;">kartiksugandhi7@gmail.com</strong>
@@ -433,7 +281,11 @@
           <label><i class="fa-solid fa-key"></i> Website Password</label>
           <input type="password" id="loginPassword" required placeholder="Enter password to unlock" autocomplete="current-password" autofocus />
         </div>
-        
+        <div class="form-group">
+          <label><i class="fa-solid fa-mobile-screen"></i> Device Name (so the owner can recognise you)</label>
+          <input type="text" id="deviceNameInput" maxlength="60" placeholder="e.g. Kartik's Phone" />
+        </div>
+
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
           <input type="checkbox" id="rememberMe" checked style="accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px;" />
           <label for="rememberMe" style="cursor: pointer; margin: 0; color: var(--text-muted);">Stay logged in on this device</label>
@@ -446,9 +298,30 @@
     </div>
   </div>
 
+  <!-- ================= PENDING APPROVAL ================= -->
+  <div id="pendingSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-hourglass-half"></i></div>
+      <h2 style="color: var(--warning); text-shadow: none;">Waiting for Approval</h2>
+      <p>The owner has been notified. This page will open automatically once your device is allowed.</p>
+      <div class="device-chip" id="pendingDeviceName">Device</div>
+      <button class="btn btn-secondary btn-block" id="btnCancelPending"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+    </div>
+  </div>
+
+  <!-- ================= DENIED ================= -->
+  <div id="deniedSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon denied"><i class="fa-solid fa-ban"></i></div>
+      <h2 style="color: var(--danger); text-shadow: none;">Access Denied</h2>
+      <p>The owner has denied access for this device.</p>
+      <div class="device-chip" id="deniedDeviceName">Device</div>
+      <button class="btn btn-secondary btn-block" id="btnCancelDenied"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+    </div>
+  </div>
+
   <!-- ================= DASHBOARD SECTION ================= -->
   <div id="dashboardSection" class="container hidden">
-    <!-- Header -->
     <header>
       <div class="logo">
         <i class="fa-solid fa-display"></i>
@@ -463,7 +336,26 @@
       </div>
     </header>
 
-    <!-- Real-Time LED Display Preview Simulation -->
+    <!-- Device access manager (admin device only) -->
+    <div class="card hidden" id="devicePanel">
+      <div class="card-title" style="justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-laptop-mobile"></i>
+          <span>Device Access</span>
+        </div>
+        <span class="badge pending hidden" id="pendingCountBadge">0 waiting</span>
+      </div>
+      <div class="device-list" id="deviceList"></div>
+
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:0.85rem; font-weight:600; color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i> Failed login attempts (wrong password)</span>
+          <button class="btn-sm btn-remove" id="btnClearAttempts">Clear</button>
+        </div>
+        <div id="attemptList"></div>
+      </div>
+    </div>
+
     <div class="card" style="padding: 16px;">
       <div class="led-preview-wrapper">
         <div class="led-banner-info">
@@ -476,14 +368,12 @@
       </div>
     </div>
 
-    <!-- Timing & Speed Configuration -->
     <div class="card">
       <div class="card-title">
         <i class="fa-solid fa-sliders"></i>
         <span>Display Speed & Interval Settings</span>
       </div>
       <div class="controls-grid">
-        <!-- Scroll Speed Slider -->
         <div class="slider-box">
           <div class="slider-header">
             <span><i class="fa-solid fa-gauge-high"></i> Scrolling Speed</span>
@@ -491,13 +381,10 @@
           </div>
           <input type="range" id="speedSlider" min="10" max="80" value="25" step="5" />
           <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
-            <span>Fast (10ms)</span>
-            <span>Balanced (25ms)</span>
-            <span>Slow (80ms)</span>
+            <span>Fast (10ms)</span><span>Balanced (25ms)</span><span>Slow (80ms)</span>
           </div>
         </div>
 
-        <!-- Delay Between Sentences Slider -->
         <div class="slider-box">
           <div class="slider-header">
             <span><i class="fa-solid fa-hourglass-half"></i> Delay Between Sentences</span>
@@ -505,29 +392,12 @@
           </div>
           <input type="range" id="delaySlider" min="0" max="10" value="2" step="0.5" />
           <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
-            <span>No Delay (0s)</span>
-            <span>Normal (2-3s)</span>
-            <span>Long (10s)</span>
-          </div>
-        </div>
-
-        <!-- Font Size Slider -->
-        <div class="slider-box">
-          <div class="slider-header">
-            <span><i class="fa-solid fa-text-height"></i> Font Size</span>
-            <span class="slider-val" id="fontSizeVal">5 / 10</span>
-          </div>
-          <input type="range" id="fontSizeSlider" min="1" max="10" value="5" step="1" />
-          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
-            <span>Tiny (1)</span>
-            <span>Default (5)</span>
-            <span>Huge (10)</span>
+            <span>No Delay (0s)</span><span>Normal (2-3s)</span><span>Long (10s)</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Multiple Sentences in Sequence -->
     <div class="card">
       <div class="card-title" style="justify-content: space-between;">
         <div style="display:flex; align-items:center; gap:10px;">
@@ -537,22 +407,34 @@
         <span style="font-size:0.8rem; color:var(--text-muted);" id="msgCountBadge">3 sentences</span>
       </div>
 
-      <div class="msg-list" id="msgListContainer">
-        <!-- Dynamic message rows will be inserted here -->
-      </div>
+      <div class="msg-list" id="msgListContainer"></div>
 
       <button class="btn btn-secondary" id="btnAddSentence" style="width: 100%; margin-bottom: 20px;">
         <i class="fa-solid fa-plus"></i> Add New Sentence
       </button>
 
-      <!-- Save Button -->
       <button class="btn btn-primary btn-block" id="btnSaveFirebase" style="font-size: 1.05rem; padding: 14px;">
         <i class="fa-solid fa-cloud-arrow-up"></i> Update & Push to LED Display
       </button>
     </div>
   </div>
 
-  <!-- Toast Notification element -->
+  <!-- ================= OWNER ALERT POPUP ================= -->
+  <div class="alert-overlay hidden" id="accessAlert">
+    <div class="alert-box">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-bell"></i></div>
+      <h3>Login Request</h3>
+      <p>Someone logged in with your ID &amp; password from:</p>
+      <div class="device-chip" id="alertDeviceName">Device</div>
+      <p id="alertDeviceTime" style="font-size:0.8rem; margin-bottom:0;"></p>
+      <p id="alertQueue" style="font-size:0.75rem; margin-bottom:0;"></p>
+      <div class="alert-buttons">
+        <button class="btn btn-deny-big" id="alertDeny"><i class="fa-solid fa-xmark"></i> Deny</button>
+        <button class="btn btn-allow-big" id="alertAllow"><i class="fa-solid fa-check"></i> Allow</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast">
     <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.2rem;"></i>
     <span id="toastMsg">Changes updated successfully!</span>
@@ -561,7 +443,6 @@
   <script>
     /* ================================================================
        FIREBASE CONFIGURATION
-       NOTE: Replace the credentials below with your Firebase Project Config
        ================================================================ */
     const firebaseConfig = {
       apiKey: "AIzaSyA7URhxbcFt-LDS5lTRh99KbgTZUGW0mQU",
@@ -573,26 +454,30 @@
       appId: "1:382926990007:web:25145cded6c1ff36673b32"
     };
 
-    // Initialize Firebase Realtime Database
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-    }
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // DOM Elements
-    const authSection = document.getElementById("authSection");
-    const dashboardSection = document.getElementById("dashboardSection");
+    // DOM
+    const sections = {
+      loading: document.getElementById("loadingSection"),
+      auth: document.getElementById("authSection"),
+      pending: document.getElementById("pendingSection"),
+      denied: document.getElementById("deniedSection"),
+      dashboard: document.getElementById("dashboardSection")
+    };
     const loginForm = document.getElementById("loginForm");
     const loginEmail = document.getElementById("loginEmail");
     const loginPassword = document.getElementById("loginPassword");
+    const deviceNameInput = document.getElementById("deviceNameInput");
     const rememberMe = document.getElementById("rememberMe");
     const btnLogin = document.getElementById("btnLogin");
     const btnLogout = document.getElementById("btnLogout");
     const userEmailBadge = document.getElementById("userEmailBadge");
+    const devicePanel = document.getElementById("devicePanel");
+    const deviceList = document.getElementById("deviceList");
+    const attemptList = document.getElementById("attemptList");
+    const pendingCountBadge = document.getElementById("pendingCountBadge");
 
-    // ================================================================
-    // WEBSITE ACCESS CREDENTIALS (LOCK ONLY FOR WEBSITE)
-    // ================================================================
     const AUTHORIZED_CREDENTIALS = {
       email: "kartiksugandhi7@gmail.com",
       password: "8626052234@Kartik"
@@ -602,119 +487,466 @@
     const speedVal = document.getElementById("speedVal");
     const delaySlider = document.getElementById("delaySlider");
     const delayVal = document.getElementById("delayVal");
-    const fontSizeSlider = document.getElementById("fontSizeSlider");
-    const fontSizeVal = document.getElementById("fontSizeVal");
     const msgListContainer = document.getElementById("msgListContainer");
     const msgCountBadge = document.getElementById("msgCountBadge");
     const btnAddSentence = document.getElementById("btnAddSentence");
     const btnSaveFirebase = document.getElementById("btnSaveFirebase");
-
     const ledScreen = document.getElementById("ledScreen");
     const ledText = document.getElementById("ledText");
     const previewStatus = document.getElementById("previewStatus");
 
-    // Local State
-    let messagesState = [
-      "WELCOME TO OUR DIGITAL HUB",
-      "SPECIAL OFFER 50% OFF TODAY",
-      "THANK YOU FOR VISITING US"
-    ];
+    // Local state
+    let messagesState = ["WELCOME TO OUR DIGITAL HUB", "SPECIAL OFFER 50% OFF TODAY", "THANK YOU FOR VISITING US"];
     let scrollSpeedMs = 25;
     let delayBetweenSec = 2;
-    let fontSizeLevel = 5; // 1 (tiny) - 10 (huge)
+    let simIndex = 0, simPos = 0, simTimer = null, simState = "SCROLL", simDelayTimeout = null;
 
-    // Simulation animation state
-    let simIndex = 0;
-    let simPos = 0;
-    let simTimer = null;
-    let simState = "SCROLL"; // "SCROLL" or "DELAY"
-
-    // Maps the 1-10 slider level to a pixel size for the WEB preview only.
-    // Level 5 = 32px, matching the original hardcoded preview size.
-    function fontLevelToPreviewPx(level) {
-      return 16 + (level - 1) * 4; // 1->16px ... 5->32px ... 10->52px
+    /* ================================================================
+       DEVICE IDENTITY
+       ================================================================ */
+    function newId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
 
-    function applyFontSizePreview() {
-      ledText.style.fontSize = fontLevelToPreviewPx(fontSizeLevel) + "px";
+    // A permanent random ID for this browser (stays until site data is cleared)
+    let myDeviceId = localStorage.getItem("p10_device_id");
+    if (!myDeviceId) {
+      myDeviceId = newId();
+      localStorage.setItem("p10_device_id", myDeviceId);
+    }
+    let myDeviceRef = db.ref("devices/" + myDeviceId);
+
+    function detectDeviceName() {
+      const ua = navigator.userAgent || "";
+      let os = "Unknown device";
+      let model = null;
+
+      if (/Android/i.test(ua)) {
+        os = "Android";
+        const m = ua.match(/Android [\d.]+;\s*([^;)]+?)(?:\s+Build|\)|;)/);
+        if (m && m[1] && m[1].trim().length > 1) model = m[1].trim();
+      } else if (/iPhone/i.test(ua)) os = "iPhone";
+      else if (/iPad/i.test(ua)) os = "iPad";
+      else if (/Windows/i.test(ua)) os = "Windows PC";
+      else if (/Mac OS X/i.test(ua)) os = "Mac";
+      else if (/CrOS/i.test(ua)) os = "Chromebook";
+      else if (/Linux/i.test(ua)) os = "Linux PC";
+
+      let browser = "Browser";
+      if (/Edg\//i.test(ua)) browser = "Edge";
+      else if (/OPR\//i.test(ua)) browser = "Opera";
+      else if (/SamsungBrowser/i.test(ua)) browser = "Samsung Internet";
+      else if (/Firefox/i.test(ua)) browser = "Firefox";
+      else if (/Chrome|CriOS/i.test(ua)) browser = "Chrome";
+      else if (/Safari/i.test(ua)) browser = "Safari";
+
+      return (model || os) + " - " + browser;
+    }
+
+    function getMyDeviceName() {
+      const typed = deviceNameInput.value.trim();
+      return typed || detectDeviceName();
+    }
+
+    deviceNameInput.value = localStorage.getItem("p10_device_label") || detectDeviceName();
+
+    /* ================================================================
+       SECTION SWITCHING
+       ================================================================ */
+    function showSection(name) {
+      Object.keys(sections).forEach((k) => sections[k].classList.toggle("hidden", k !== name));
     }
 
     /* ================================================================
-       WEBSITE PASSWORD PROTECTION (CLIENT-SIDE AUTHENTICATION)
+       LOGIN FLOW: password -> register device -> wait for approval
        ================================================================ */
-    loginForm.addEventListener("submit", (e) => {
+    let isDashboardUnlocked = false;
+    let myIsAdmin = false;
+    let myWatcher = null;
+
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const enteredEmail = loginEmail.value.trim().toLowerCase();
       const enteredPassword = loginPassword.value;
+      const deviceName = getMyDeviceName();
 
-      // Verify email and password
-      if (
-        enteredEmail === AUTHORIZED_CREDENTIALS.email.toLowerCase() &&
-        enteredPassword === AUTHORIZED_CREDENTIALS.password
-      ) {
-        // Unlock website
-        if (rememberMe && rememberMe.checked) {
-          localStorage.setItem("p10_web_auth", "unlocked");
-        } else {
-          sessionStorage.setItem("p10_web_auth", "unlocked");
-        }
-
-        unlockDashboard();
-        showToast("Welcome Kartik! Website unlocked.");
-      } else {
+      if (enteredEmail !== AUTHORIZED_CREDENTIALS.email.toLowerCase() ||
+          enteredPassword !== AUTHORIZED_CREDENTIALS.password) {
         showToast("Access Denied: Incorrect Password!", true);
         loginPassword.value = "";
         loginPassword.focus();
+        logFailedAttempt(deviceName);
+        return;
+      }
+
+      btnLogin.disabled = true;
+      btnLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+
+      try {
+        localStorage.setItem("p10_device_label", deviceName);
+        await registerDevice(deviceName);
+
+        // remember this login (device approval is still checked live on every load)
+        if (rememberMe.checked) {
+          localStorage.setItem("p10_web_auth", "unlocked");
+          sessionStorage.removeItem("p10_web_auth");
+        } else {
+          sessionStorage.setItem("p10_web_auth", "unlocked");
+          localStorage.removeItem("p10_web_auth");
+        }
+        watchMyDevice();
+      } catch (err) {
+        console.error(err);
+        showToast("Could not reach Firebase: " + err.message, true);
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i> Unlock Dashboard';
+        loginPassword.value = "";
       }
     });
 
-    btnLogout.addEventListener("click", () => {
+    async function registerDevice(name) {
+      const now = Date.now();
+      const snap = await myDeviceRef.once("value");
+
+      if (snap.exists()) {
+        // Known device: keep its status, just refresh info
+        await myDeviceRef.update({ name: name, userAgent: navigator.userAgent, lastSeen: now });
+        return;
+      }
+
+      // Brand-new device. If NO devices exist yet, this one becomes the owner (auto-approved).
+      const all = await db.ref("devices").once("value");
+      const isFirst = !all.exists();
+
+      await myDeviceRef.set({
+        name: name,
+        userAgent: navigator.userAgent,
+        platform: navigator.platform || "",
+        firstSeen: now,
+        lastSeen: now,
+        status: isFirst ? "approved" : "pending",
+        isAdmin: isFirst
+      });
+    }
+
+    function logFailedAttempt(name) {
+      db.ref("loginAttempts").push({
+        deviceId: myDeviceId,
+        name: name,
+        userAgent: navigator.userAgent,
+        time: Date.now()
+      }).catch(() => {});
+    }
+
+    // Live listener on THIS device's record: approve / deny / remove take effect instantly
+    function watchMyDevice() {
+      stopWatchingMyDevice();
+      showSection("loading");
+
+      myWatcher = myDeviceRef.on("value", (snap) => {
+        const v = snap.val();
+
+        if (!v) {
+          // record was removed by the owner (or never existed)
+          clearAuthFlags();
+          lockDashboard();
+          stopWatchingMyDevice();
+          showSection("auth");
+          showToast("Access for this device was removed. Please log in again.", true);
+          return;
+        }
+
+        myIsAdmin = !!v.isAdmin;
+        document.getElementById("pendingDeviceName").textContent = v.name || "Unknown device";
+        document.getElementById("deniedDeviceName").textContent = v.name || "Unknown device";
+
+        if (v.status === "approved") {
+          if (!isDashboardUnlocked) unlockDashboard();
+          else devicePanel.classList.toggle("hidden", !myIsAdmin);
+        } else if (v.status === "denied") {
+          lockDashboard();
+          showSection("denied");
+        } else {
+          lockDashboard();
+          showSection("pending");
+        }
+      }, (error) => {
+        console.error("Device watch error:", error);
+        showSection("auth");
+        showToast("Firebase error: " + error.message, true);
+      });
+    }
+
+    function stopWatchingMyDevice() {
+      if (myWatcher) { myDeviceRef.off("value", myWatcher); myWatcher = null; }
+    }
+
+    function clearAuthFlags() {
       localStorage.removeItem("p10_web_auth");
       sessionStorage.removeItem("p10_web_auth");
+    }
+
+    function goBackToLogin() {
+      clearAuthFlags();
+      stopWatchingMyDevice();
       lockDashboard();
+      showSection("auth");
+    }
+
+    document.getElementById("btnCancelPending").addEventListener("click", goBackToLogin);
+    document.getElementById("btnCancelDenied").addEventListener("click", goBackToLogin);
+
+    btnLogout.addEventListener("click", () => {
+      goBackToLogin();
       showToast("Website locked successfully.");
     });
 
     function unlockDashboard() {
-      authSection.classList.add("hidden");
-      dashboardSection.classList.remove("hidden");
+      isDashboardUnlocked = true;
+      showSection("dashboard");
       userEmailBadge.textContent = AUTHORIZED_CREDENTIALS.email;
+      devicePanel.classList.toggle("hidden", !myIsAdmin);
+      myDeviceRef.update({ lastSeen: Date.now() }).catch(() => {});
+      if (myIsAdmin) startAdminListeners();
       loadConfigFromFirebase();
     }
 
     function lockDashboard() {
-      authSection.classList.remove("hidden");
-      dashboardSection.classList.add("hidden");
-      loginPassword.value = "";
+      isDashboardUnlocked = false;
       if (simTimer) clearInterval(simTimer);
+      if (simDelayTimeout) clearTimeout(simDelayTimeout);
+      stopAdminListeners();
+      loginPassword.value = "";
     }
 
-    // Check saved unlock state on page load
+    // On page load: if this browser was logged in before, re-check its approval live
     function checkAuthOnLoad() {
-      const isUnlocked =
+      const remembered =
         localStorage.getItem("p10_web_auth") === "unlocked" ||
         sessionStorage.getItem("p10_web_auth") === "unlocked";
+      if (remembered) watchMyDevice();
+      else showSection("auth");
+    }
 
-      if (isUnlocked) {
-        unlockDashboard();
-      } else {
-        lockDashboard();
+    /* ================================================================
+       ADMIN: DEVICE MANAGER (allow / deny / remove)
+       ================================================================ */
+    let devicesListener = null;
+    let attemptsListener = null;
+    let knownPendingIds = null; // null until first snapshot, so we don't toast for old requests
+
+    function startAdminListeners() {
+      stopAdminListeners();
+      knownPendingIds = null;
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+
+      devicesListener = db.ref("devices").on("value", (snap) => {
+        const data = snap.val() || {};
+        const list = Object.keys(data).map((id) => Object.assign({ id }, data[id]));
+        renderDevices(list);
+        updateAlertModal(list);
+
+        // Notify about NEW pending requests
+        const pendingNow = list.filter((d) => d.status === "pending").map((d) => d.id);
+        if (knownPendingIds !== null) {
+          list.filter((d) => d.status === "pending" && !knownPendingIds.includes(d.id)).forEach((d) => {
+            showToast("New device wants access: " + (d.name || "Unknown"), true);
+            notifyOwner(d);
+          });
+        }
+        knownPendingIds = pendingNow;
+      });
+
+      attemptsListener = db.ref("loginAttempts").limitToLast(10).on("value", (snap) => {
+        const data = snap.val() || {};
+        const rows = Object.keys(data).map((k) => data[k]).sort((a, b) => b.time - a.time);
+        renderAttempts(rows);
+      });
+    }
+
+    function stopAdminListeners() {
+      if (devicesListener) { db.ref("devices").off("value", devicesListener); devicesListener = null; }
+      if (attemptsListener) { db.ref("loginAttempts").off("value", attemptsListener); attemptsListener = null; }
+      document.getElementById("accessAlert").classList.add("hidden");
+      stopTitleFlash();
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return "-";
+      return new Date(ts).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function renderDevices(list) {
+      const order = { pending: 0, approved: 1, denied: 2 };
+      list.sort((a, b) => (order[a.status] - order[b.status]) || ((b.lastSeen || 0) - (a.lastSeen || 0)));
+
+      const pendingCount = list.filter((d) => d.status === "pending").length;
+      pendingCountBadge.textContent = pendingCount + " waiting";
+      pendingCountBadge.classList.toggle("hidden", pendingCount === 0);
+
+      deviceList.innerHTML = "";
+      if (list.length === 0) {
+        deviceList.innerHTML = '<div class="empty-note">No devices yet.</div>';
+        return;
+      }
+
+      list.forEach((d) => {
+        const isMe = d.id === myDeviceId;
+        const status = d.status || "pending";
+        const row = document.createElement("div");
+        row.className = "device-item" + (status === "pending" ? " is-pending" : "");
+        row.innerHTML = `
+          <div class="device-info">
+            <div class="device-name">
+              <i class="fa-solid ${/iPhone|Android|iPad/i.test(d.userAgent || d.name || "") ? "fa-mobile-screen" : "fa-desktop"}"></i>
+              <span>${escapeHtml(d.name || "Unknown device")}</span>
+              <span class="badge ${status}">${status}</span>
+              ${isMe ? '<span class="badge me">this device</span>' : ""}
+              ${d.isAdmin ? '<span class="badge admin">owner</span>' : ""}
+            </div>
+            <div class="device-meta">
+              First seen: ${fmtTime(d.firstSeen)} &nbsp;|&nbsp; Last active: ${fmtTime(d.lastSeen)}
+            </div>
+          </div>
+          <div class="device-actions"></div>
+        `;
+
+        const actions = row.querySelector(".device-actions");
+
+        const btnAllow = document.createElement("button");
+        btnAllow.className = "btn-sm btn-allow";
+        btnAllow.innerHTML = '<i class="fa-solid fa-check"></i> Allow';
+        btnAllow.disabled = status === "approved";
+        btnAllow.addEventListener("click", () => setDeviceStatus(d.id, "approved"));
+
+        const btnDeny = document.createElement("button");
+        btnDeny.className = "btn-sm btn-deny";
+        btnDeny.innerHTML = '<i class="fa-solid fa-xmark"></i> Deny';
+        btnDeny.disabled = status === "denied" || isMe;
+        btnDeny.addEventListener("click", () => setDeviceStatus(d.id, "denied"));
+
+        const btnRemove = document.createElement("button");
+        btnRemove.className = "btn-sm btn-remove";
+        btnRemove.title = "Remove this device record";
+        btnRemove.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+        btnRemove.disabled = isMe;
+        btnRemove.addEventListener("click", () => {
+          if (confirm("Remove '" + (d.name || "this device") + "'? It will need approval again.")) {
+            db.ref("devices/" + d.id).remove();
+          }
+        });
+
+        actions.appendChild(btnAllow);
+        actions.appendChild(btnDeny);
+        actions.appendChild(btnRemove);
+        deviceList.appendChild(row);
+      });
+    }
+
+    function setDeviceStatus(id, status) {
+      db.ref("devices/" + id).update({ status: status, decidedAt: Date.now() })
+        .then(() => showToast(status === "approved" ? "Device allowed." : "Device denied."))
+        .catch((err) => showToast("Failed: " + err.message, true));
+    }
+
+    /* ---------- Owner alert popup (Allow / Deny) ---------- */
+    let alertDeviceId = null;
+    const baseTitle = document.title;
+    let titleFlashTimer = null;
+
+    function updateAlertModal(list) {
+      const pending = list
+        .filter((d) => d.status === "pending" && d.id !== myDeviceId)
+        .sort((a, b) => (a.firstSeen || 0) - (b.firstSeen || 0));
+      const overlay = document.getElementById("accessAlert");
+
+      if (pending.length === 0) {
+        alertDeviceId = null;
+        overlay.classList.add("hidden");
+        stopTitleFlash();
+        return;
+      }
+
+      const d = pending[0];
+      alertDeviceId = d.id;
+      document.getElementById("alertDeviceName").textContent = d.name || "Unknown device";
+      document.getElementById("alertDeviceTime").textContent = "Requested at " + fmtTime(d.firstSeen);
+      document.getElementById("alertQueue").textContent =
+        pending.length > 1 ? (pending.length - 1) + " more request(s) waiting" : "";
+      overlay.classList.remove("hidden");
+      startTitleFlash();
+    }
+
+    document.getElementById("alertAllow").addEventListener("click", () => {
+      if (alertDeviceId) setDeviceStatus(alertDeviceId, "approved");
+    });
+    document.getElementById("alertDeny").addEventListener("click", () => {
+      if (alertDeviceId) setDeviceStatus(alertDeviceId, "denied");
+    });
+
+    function notifyOwner(d) {
+      // sound
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [880, 660, 880].forEach((freq, i) => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+          g.gain.value = 0.15;
+          o.start(ctx.currentTime + i * 0.22);
+          o.stop(ctx.currentTime + i * 0.22 + 0.16);
+        });
+      } catch (e) {}
+      // vibrate on phones
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      // system notification if the tab is in the background
+      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+        try { new Notification("P10 Display: login request", { body: (d.name || "Unknown device") + " wants access. Open the page to Allow or Deny." }); } catch (e) {}
       }
     }
 
-    // Trigger check immediately
-    checkAuthOnLoad();
+    function startTitleFlash() {
+      if (titleFlashTimer) return;
+      let on = false;
+      titleFlashTimer = setInterval(() => {
+        document.title = on ? baseTitle : "(!) Login request";
+        on = !on;
+      }, 1000);
+    }
+    function stopTitleFlash() {
+      if (titleFlashTimer) { clearInterval(titleFlashTimer); titleFlashTimer = null; }
+      document.title = baseTitle;
+    }
+
+    function renderAttempts(rows) {
+      attemptList.innerHTML = "";
+      if (rows.length === 0) {
+        attemptList.innerHTML = '<div class="empty-note">No failed attempts.</div>';
+        return;
+      }
+      rows.forEach((r) => {
+        const el = document.createElement("div");
+        el.className = "attempt-row";
+        el.innerHTML = `<span><strong>Wrong password</strong> from ${escapeHtml(r.name || "Unknown device")}</span><span>${fmtTime(r.time)}</span>`;
+        attemptList.appendChild(el);
+      });
+    }
+
+    document.getElementById("btnClearAttempts").addEventListener("click", () => {
+      db.ref("loginAttempts").remove();
+    });
 
     /* ================================================================
-       DATA LOAD & SAVE TO FIREBASE
+       DATA LOAD & SAVE TO FIREBASE (P10 CONFIG)
        ================================================================ */
     function loadConfigFromFirebase() {
       db.ref("p10_config").once("value", (snapshot) => {
         const val = snapshot.val();
         if (val) {
-          if (Array.isArray(val.messages) && val.messages.length > 0) {
-            messagesState = val.messages;
-          }
+          if (Array.isArray(val.messages) && val.messages.length > 0) messagesState = val.messages;
           if (val.speed) {
             scrollSpeedMs = parseInt(val.speed);
             speedSlider.value = scrollSpeedMs;
@@ -725,33 +957,23 @@
             delaySlider.value = delayBetweenSec;
             delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
           }
-          if (val.fontSize !== undefined) {
-            fontSizeLevel = Math.min(10, Math.max(1, parseInt(val.fontSize)));
-            fontSizeSlider.value = fontSizeLevel;
-            fontSizeVal.textContent = fontSizeLevel + " / 10";
-          }
         }
         renderMessageList();
-        applyFontSizePreview();
         restartSimulation();
         showToast("Display data synchronized with Firebase.");
       }, (error) => {
         console.error("Firebase read error:", error);
         renderMessageList();
-        applyFontSizePreview();
         restartSimulation();
       });
     }
 
     async function saveToFirebase() {
-      // Collect valid non-empty messages
       const inputs = msgListContainer.querySelectorAll(".msg-input");
       const updatedMessages = [];
       inputs.forEach((inp) => {
         const val = inp.value.trim();
-        if (val.length > 0) {
-          updatedMessages.push(val);
-        }
+        if (val.length > 0) updatedMessages.push(val);
       });
 
       if (updatedMessages.length === 0) {
@@ -762,12 +984,10 @@
       messagesState = updatedMessages;
       scrollSpeedMs = parseInt(speedSlider.value);
       delayBetweenSec = parseFloat(delaySlider.value);
-      fontSizeLevel = parseInt(fontSizeSlider.value);
 
       const payload = {
         speed: scrollSpeedMs,
-        delayBetween: Math.round(delayBetweenSec * 1000), // convert to ms for ESP8266
-        fontSize: fontSizeLevel, // 1-10, mapped to a bitmap font on the ESP8266 side
+        delayBetween: Math.round(delayBetweenSec * 1000),
         messages: messagesState,
         lastUpdated: Date.now()
       };
@@ -803,12 +1023,6 @@
       delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
     });
 
-    fontSizeSlider.addEventListener("input", (e) => {
-      fontSizeLevel = parseInt(e.target.value);
-      fontSizeVal.textContent = fontSizeLevel + " / 10";
-      applyFontSizePreview();
-    });
-
     btnAddSentence.addEventListener("click", () => {
       messagesState.push("NEW SENTENCE " + (messagesState.length + 1));
       renderMessageList();
@@ -835,12 +1049,8 @@
           </div>
         `;
 
-        // Update on input change
         const inp = row.querySelector(".msg-input");
-        inp.addEventListener("input", (e) => {
-          messagesState[idx] = e.target.value;
-        });
-
+        inp.addEventListener("input", (e) => { messagesState[idx] = e.target.value; });
         msgListContainer.appendChild(row);
       });
 
@@ -868,20 +1078,20 @@
     };
 
     function escapeHtml(text) {
-      return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return String(text).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
     /* ================================================================
-       ANIMATED LED MATRIX SIMULATION (Matches Hardware 160x16)
+       ANIMATED LED MATRIX SIMULATION
        ================================================================ */
     function restartSimulation() {
       if (simTimer) clearInterval(simTimer);
+      if (simDelayTimeout) clearTimeout(simDelayTimeout);
       if (messagesState.length === 0) return;
 
       simIndex = 0;
       simState = "SCROLL";
-      const screenWidth = ledScreen.offsetWidth;
-      simPos = screenWidth;
+      simPos = ledScreen.offsetWidth;
       ledText.textContent = messagesState[simIndex];
       ledText.style.transform = `translateX(${simPos}px)`;
 
@@ -892,17 +1102,15 @@
       if (messagesState.length === 0) return;
 
       if (simState === "SCROLL") {
-        simPos -= 2; // move 2px per step in web preview
+        simPos -= 2;
         ledText.style.transform = `translateX(${simPos}px)`;
 
         const textWidth = ledText.offsetWidth;
         if (simPos < -textWidth) {
-          // Transition to delay state
           simState = "DELAY";
           previewStatus.textContent = `Sentence #${simIndex + 1} finished. Waiting ${delayBetweenSec.toFixed(1)}s delay...`;
 
-          setTimeout(() => {
-            // Next sentence
+          simDelayTimeout = setTimeout(() => {
             simIndex = (simIndex + 1) % messagesState.length;
             ledText.textContent = messagesState[simIndex];
             simPos = ledScreen.offsetWidth;
@@ -915,8 +1123,9 @@
     }
 
     /* ================================================================
-       TOAST UTILITY
+       TOAST
        ================================================================ */
+    let toastTimer = null;
     function showToast(msg, isError = false) {
       const toast = document.getElementById("toast");
       const toastMsg = document.getElementById("toastMsg");
@@ -934,8 +1143,12 @@
       }
 
       toast.classList.add("show");
-      setTimeout(() => toast.classList.remove("show"), 3500);
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
     }
+
+    // Start
+    checkAuthOnLoad();
   </script>
 </body>
 </html>
