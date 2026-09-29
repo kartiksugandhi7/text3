@@ -1,829 +1,1208 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LED Sign Controller</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<style>
-:root{--bg:#f3f5f9;--surface:#fff;--ink:#101828;--muted:#5d6b82;--line:#e2e7ef;--primary:#2454e6;--primary-d:#1a3fb8;--primary-s:#e9effd;--ok:#12805c;--ok-s:#e2f6ee;--warn:#9a5b00;--warn-s:#fff3dc;--bad:#c02b2b;--bad-s:#fdeaea;--led:#ffa726;--led-bg:#0a0b0f;--r:14px;--sh:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.05)}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;line-height:1.5;font-size:15px;-webkit-text-size-adjust:100%}
-button,input{font:inherit;color:inherit}button{cursor:pointer}
-:focus-visible{outline:3px solid rgba(36,84,230,.4);outline-offset:2px}
-.hidden{display:none!important}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P10 LED Matrix Controller - 5 Panel Hub12</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border-radius:10px;border:1px solid transparent;font-weight:600;transition:background .15s,border-color .15s}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover:not(:disabled){background:var(--primary-d)}
-.btn-quiet{background:var(--surface);border-color:var(--line);color:var(--ink)}.btn-quiet:hover:not(:disabled){background:var(--bg);border-color:#cfd6e2}
-.btn-ok{background:var(--ok);color:#fff}.btn-ok:hover:not(:disabled){background:#0d6649}
-.btn-bad{background:var(--bad);color:#fff}.btn-bad:hover:not(:disabled){background:#a02222}
-.btn-bad-outline{background:var(--surface);border-color:#eabcbc;color:var(--bad)}.btn-bad-outline:hover:not(:disabled){background:var(--bad-s)}
-.btn-sm{padding:7px 12px;font-size:.86rem;border-radius:8px}.btn-block{width:100%}
-.link-btn{background:none;border:none;color:var(--primary);font-weight:600;font-size:.86rem;padding:4px}.link-btn:hover{text-decoration:underline}
-.icon-btn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-size:.85rem}
-.icon-btn:hover:not(:disabled){background:var(--bg);color:var(--ink)}
-.icon-btn.danger:hover:not(:disabled){background:var(--bad-s);color:var(--bad);border-color:#eabcbc}
-.icon-btn:disabled{opacity:.3;cursor:not-allowed}
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-/* LED screen */
-.led-screen{position:relative;height:110px;background:var(--led-bg);border-radius:8px;overflow:hidden;display:flex;align-items:center}
-.led-screen::before{content:"";position:absolute;inset:0;background-image:radial-gradient(circle at center,#1c1d25 0 2.3px,transparent 2.8px);background-size:6px 6px}
-.led-screen::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at center,transparent 0 2.3px,var(--led-bg) 2.8px);background-size:6px 6px}
-.led-text{position:absolute;white-space:nowrap;z-index:1;font-family:'DotGothic16','Courier New',monospace;font-size:64px;line-height:1;color:var(--led);text-shadow:0 0 12px rgba(255,167,38,.55);will-change:transform}
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-card: #131926;
+      --bg-input: #1a2234;
+      --accent: #ff4500;
+      --accent-glow: rgba(255, 69, 0, 0.4);
+      --accent-secondary: #00e5ff;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-color: #273449;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
 
-/* sign-in & status */
-.center-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.panel{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:32px;box-shadow:var(--sh)}
-.panel h1{font-size:1.45rem;line-height:1.25;margin-bottom:6px;letter-spacing:-.01em}
-.panel .lead{color:var(--muted);margin-bottom:22px}
-.panel.center{text-align:center}
-.status-badge{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:1.5rem}
-.status-badge.wait{background:var(--warn-s);color:var(--warn)}.status-badge.no{background:var(--bad-s);color:var(--bad)}.status-badge.load{background:var(--primary-s);color:var(--primary)}
-.device-chip{display:inline-flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:8px 16px;font-weight:600;margin:4px 0 20px}
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
 
-.login{display:grid;grid-template-columns:1.05fr 1fr;width:100%;max-width:900px;background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:0 12px 40px rgba(16,24,40,.1)}
-.login-art{background:linear-gradient(160deg,#0c1220,#0a0b0f);color:#fff;padding:36px 32px;display:flex;flex-direction:column;justify-content:space-between;gap:28px}
-.login-art .brand{font-size:1.05rem}
-.login-art h2{font-size:1.6rem;line-height:1.25;letter-spacing:-.02em;margin-bottom:8px}
-.login-art p{color:#a9b4c8;font-size:.95rem}
-.login-art .led-screen{height:80px;border:1px solid #232633}
-.login-art .led-text{font-size:44px;position:relative}
-.login-form{padding:36px 32px}
-.login-form h1{font-size:1.45rem;letter-spacing:-.01em;margin-bottom:4px}
-.login-form .lead{color:var(--muted);margin-bottom:22px}
-@media(max-width:760px){.login{grid-template-columns:1fr}.login-art{padding:24px}.login-art h2,.login-art p.sub{display:none}.login-form{padding:26px 22px}}
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
 
-.field{margin-bottom:18px;text-align:left}
-.field label{display:block;font-weight:600;font-size:.88rem;margin-bottom:6px}
-.field .help{font-size:.8rem;color:var(--muted);margin-top:5px}
-.input{width:100%;background:var(--surface);border:1px solid #cfd6e2;border-radius:10px;padding:11px 14px;transition:border-color .15s}
-.input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(36,84,230,.16)}
-.input[readonly]{background:var(--bg);color:var(--muted)}
-.pw{position:relative}.pw .input{padding-right:46px}
-.pw button{position:absolute;right:4px;top:4px;width:38px;height:38px;border:none;background:none;color:var(--muted);border-radius:8px}
-.pw button:hover{color:var(--ink);background:var(--bg)}
-.check-row{display:flex;align-items:center;gap:10px;margin-bottom:18px;font-size:.9rem;color:var(--muted)}
-.check-row input{width:18px;height:18px;accent-color:var(--primary)}
-.notice{display:flex;gap:10px;background:var(--primary-s);color:#183a8c;border-radius:10px;padding:11px 14px;font-size:.86rem;margin-bottom:20px;text-align:left}.notice i{margin-top:3px}
+    .container { width: 100%; max-width: 850px; }
 
-/* app shell */
-.topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:50}
-.topbar-inner{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.01em}
-.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--led-bg);color:var(--led);display:flex;align-items:center;justify-content:center;font-size:.95rem}
-.top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.devices-btn.has-pending{background:var(--warn-s);border-color:#efd096;color:var(--warn)}
-.count{background:var(--bad);color:#fff;min-width:20px;height:20px;border-radius:999px;font-size:.72rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 6px}
-.account{display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--muted);padding-right:4px}
-.avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-s);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700}
-@media(max-width:720px){.account .email{display:none}}
-main{max-width:1080px;margin:0 auto;padding:24px 20px 40px}
-.page-title{margin-bottom:18px}.page-title h1{font-size:1.5rem;letter-spacing:-.02em}.page-title p{color:var(--muted)}
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 24px;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
 
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
-.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.card-head h2{font-size:1.05rem;line-height:1.3}.card-head p{color:var(--muted);font-size:.88rem}
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'Chakra Petch', sans-serif;
+      font-weight: 700; font-size: 1.4rem; letter-spacing: 1px;
+      color: var(--accent); text-shadow: 0 0 12px var(--accent-glow);
+    }
 
-.sign-card{background:#161a24;border-color:#161a24;margin-bottom:20px;padding:20px 22px 18px}
-.sign-card .card-head h2{color:#fff}.sign-card .card-head p{color:#9aa6bd}
-.sign-frame{background:#0d1017;border:1px solid #2a3040;border-radius:12px;padding:10px}
-.preview-meta{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:.85rem}
-.sign-card .preview-meta{color:#b4bfd3}
-.live-dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(52,211,153,.18)}
+    .user-pill {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card); padding: 6px 14px;
+      border-radius: 999px; border: 1px solid var(--border-color); font-size: 0.85rem;
+    }
 
-.layout{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;align-items:start}
-@media(max-width:860px){.layout{grid-template-columns:1fr}}
+    .btn-logout {
+      background: none; border: none; color: var(--danger);
+      cursor: pointer; font-size: 0.9rem; padding: 4px; transition: transform 0.2s;
+    }
+    .btn-logout:hover { transform: scale(1.15); }
 
-.msg-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
-.msg-item{display:flex;align-items:center;gap:10px;padding:6px 8px 6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
-.msg-item:focus-within{border-color:var(--primary);box-shadow:0 0 0 3px rgba(36,84,230,.12)}
-.msg-num{flex:none;width:26px;height:26px;border-radius:8px;background:var(--primary-s);color:var(--primary);font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center}
-.msg-input{flex:1;min-width:0;border:none;background:transparent;padding:9px 4px;outline:none}
-.msg-actions{display:flex;gap:6px;flex:none}
-@media(max-width:520px){.msg-item{flex-wrap:wrap}.msg-actions{width:100%;justify-content:flex-end}}
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
 
-.setting{margin-bottom:26px}.setting:last-child{margin-bottom:0}
-.setting-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
-.setting-value{font-weight:700;color:var(--primary);background:var(--primary-s);padding:2px 10px;border-radius:999px;font-size:.82rem}
-.setting .help{color:var(--muted);font-size:.84rem;margin-bottom:10px}
-input[type=range]{width:100%;accent-color:var(--primary);height:28px;cursor:pointer}
-.range-ends{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted)}
+    .card-title {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 1.15rem; font-weight: 600; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px; color: var(--accent-secondary);
+    }
 
-.save-bar{position:sticky;bottom:16px;margin-top:20px;z-index:40;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 10px 30px rgba(16,24,40,.16);flex-wrap:wrap}
-.save-status{display:flex;align-items:center;gap:10px;font-size:.9rem;color:var(--muted)}
-.save-status .dot{width:10px;height:10px;border-radius:50%;background:var(--ok)}
-.save-status.dirty{color:var(--warn);font-weight:600}.save-status.dirty .dot{background:#e08a00}
+    .auth-container { max-width: 440px; margin: 60px auto; text-align: center; }
+    .auth-container h2 {
+      font-family: 'Chakra Petch', sans-serif; font-size: 1.8rem; margin-bottom: 8px;
+      color: var(--accent); text-shadow: 0 0 15px var(--accent-glow);
+    }
+    .auth-container p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
 
-/* drawer */
-.drawer-overlay{position:fixed;inset:0;background:rgba(16,24,40,.5);z-index:1500;display:flex;justify-content:flex-end}
-.drawer{width:100%;max-width:460px;height:100%;overflow-y:auto;background:var(--bg);padding:22px 20px 30px;box-shadow:-12px 0 40px rgba(16,24,40,.25);animation:slideIn .2s ease-out}
-@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
-.drawer-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
-.drawer-head h2{font-size:1.2rem}.drawer-head p{color:var(--muted);font-size:.88rem}
-.group{margin-bottom:24px}
-.group-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.92rem;margin-bottom:10px}
-.group-title .count{background:var(--muted)}.group-title .count.warn{background:#e08a00}
-.device{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
-.device.waiting{border-color:#efd096;background:#fffaf0}
-.device-top{display:flex;gap:12px;align-items:flex-start}
-.device-icon{flex:none;width:38px;height:38px;border-radius:9px;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center}
-.device-name{font-weight:600;word-break:break-word}.device-meta{font-size:.8rem;color:var(--muted)}
-.tag{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;vertical-align:middle}
-.tag.me{background:var(--primary-s);color:var(--primary)}.tag.owner{background:var(--ok-s);color:var(--ok)}
-.device-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.empty{color:var(--muted);font-size:.88rem;padding:10px 2px}
-.attempt{display:flex;justify-content:space-between;gap:10px;font-size:.84rem;padding:9px 0;border-bottom:1px solid var(--line);color:var(--muted)}
-.attempt:last-child{border-bottom:none}.attempt b{color:var(--ink);font-weight:600}
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-group label { display: block; font-size: 0.85rem; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
 
-/* popup & toast */
-.alert-overlay{position:fixed;inset:0;background:rgba(16,24,40,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}
-.alert-box{background:var(--surface);border-radius:18px;padding:28px 24px;width:100%;max-width:400px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35);animation:pop .2s ease-out}
-@keyframes pop{from{transform:scale(.95);opacity:0}to{transform:none;opacity:1}}
-.alert-box h3{font-size:1.25rem;margin-bottom:6px}.alert-box p{color:var(--muted);font-size:.9rem}
-.alert-buttons{display:flex;gap:12px;margin-top:22px}.alert-buttons .btn{flex:1;padding:13px}
-.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,120px);opacity:0;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;display:flex;align-items:center;gap:10px;z-index:3000;transition:all .25s ease;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.3);font-weight:500}
-.toast.show{transform:translate(-50%,0);opacity:1}
-.toast.error i{color:#ff9a9a}.toast.ok i{color:#6fe0a8}
-</style>
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+      width: 100%; background: var(--bg-input); border: 1px solid var(--border-color);
+      border-radius: 8px; padding: 12px 14px; color: var(--text-main);
+      font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
+    .led-preview-wrapper {
+      background: #000; border: 3px solid #1f2937; border-radius: 8px; padding: 10px;
+      overflow: hidden; position: relative; margin-bottom: 20px;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(255, 69, 0, 0.15);
+    }
+    .led-banner-info {
+      display: flex; justify-content: space-between; font-size: 0.75rem; color: #64748b;
+      margin-bottom: 6px; font-family: 'Chakra Petch', monospace; gap: 8px; flex-wrap: wrap;
+    }
+    .led-display-screen {
+      width: 100%; height: 64px; background: #030303; border-radius: 4px;
+      position: relative; overflow: hidden; display: flex; align-items: center;
+      background-image: radial-gradient(#1a1a1a 15%, transparent 16%); background-size: 6px 6px;
+    }
+    .led-scrolling-text {
+      position: absolute; white-space: nowrap; font-family: 'Chakra Petch', monospace;
+      font-size: 32px; font-weight: 700; color: #ff3300;
+      text-shadow: 0 0 8px #ff3300, 0 0 16px rgba(255, 51, 0, 0.6);
+      letter-spacing: 2px; will-change: transform;
+    }
+
+    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 640px) { .controls-grid { grid-template-columns: 1fr; } }
+
+    .slider-box { background: var(--bg-input); padding: 16px; border-radius: 10px; border: 1px solid var(--border-color); }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .slider-header span { font-size: 0.9rem; font-weight: 500; }
+    .slider-val { font-family: 'Chakra Petch', monospace; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+    .msg-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .msg-item {
+      display: flex; align-items: center; gap: 10px; background: var(--bg-input);
+      border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 12px;
+      animation: fadeIn 0.25s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .msg-drag-idx { font-family: 'Chakra Petch', monospace; font-weight: 700; font-size: 0.9rem; color: var(--text-muted); min-width: 24px; text-align: center; }
+    .msg-input {
+      flex: 1; background: transparent; border: 1px solid transparent; color: var(--text-main);
+      padding: 6px 10px; font-size: 0.95rem; border-radius: 6px;
+    }
+    .msg-input:focus { background: #0f1624; border-color: var(--accent-secondary); }
+    .msg-actions { display: flex; gap: 6px; }
+
+    .btn-icon {
+      background: #222d42; border: 1px solid var(--border-color); color: var(--text-muted);
+      border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-icon:hover { background: #2d3c58; color: var(--text-main); }
+    .btn-icon.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, #ff4500, #ff6b3d); color: #fff; box-shadow: 0 4px 15px var(--accent-glow); }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+    .btn-secondary { background: #1f293d; color: var(--text-main); border: 1px solid var(--border-color); }
+    .btn-secondary:hover { background: #28354f; }
+    .btn-block { width: 100%; }
+
+    /* ===== Device access panel ===== */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
+    }
+    .badge.pending  { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid var(--warning); }
+    .badge.approved { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid var(--success); }
+    .badge.denied   { background: rgba(239,68,68,0.15);  color: var(--danger);  border: 1px solid var(--danger); }
+    .badge.me       { background: rgba(0,229,255,0.12);  color: var(--accent-secondary); border: 1px solid var(--accent-secondary); }
+    .badge.admin    { background: rgba(255,69,0,0.15);   color: var(--accent); border: 1px solid var(--accent); }
+
+    .device-list { display: flex; flex-direction: column; gap: 10px; }
+    .device-item {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      background: var(--bg-input); border: 1px solid var(--border-color);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .device-item.is-pending { border-color: var(--warning); box-shadow: 0 0 12px rgba(245,158,11,0.25); }
+    .device-info { flex: 1; min-width: 200px; }
+    .device-name { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .device-meta { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+    .device-actions { display: flex; gap: 6px; }
+    .btn-sm {
+      padding: 7px 12px; font-size: 0.8rem; border-radius: 6px; border: 1px solid transparent;
+      cursor: pointer; font-weight: 600; display: inline-flex; gap: 6px; align-items: center; color: #fff;
+    }
+    .btn-sm:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-allow  { background: var(--success); }
+    .btn-deny   { background: var(--danger); }
+    .btn-remove { background: #2d3c58; border-color: var(--border-color); color: var(--text-muted); }
+    .btn-remove:hover:not(:disabled) { color: #fff; }
+
+    .empty-note { color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 14px; }
+    .attempt-row { font-size: 0.8rem; color: var(--text-muted); padding: 8px 0; border-bottom: 1px dashed var(--border-color); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .attempt-row:last-child { border-bottom: none; }
+    .attempt-row strong { color: var(--danger); font-weight: 600; }
+
+    .status-icon { font-size: 3rem; margin-bottom: 12px; }
+    .status-icon.pending { color: var(--warning); }
+    .status-icon.denied { color: var(--danger); }
+    .device-chip {
+      display: inline-block; background: var(--bg-input); border: 1px solid var(--border-color);
+      padding: 8px 14px; border-radius: 8px; margin: 6px 0 18px; font-weight: 600; color: #fff;
+    }
+    .pulse { animation: pulse 1.6s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; background: var(--bg-card);
+      border: 1px solid var(--border-color); border-left: 5px solid var(--accent);
+      padding: 14px 20px; border-radius: 8px; box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      display: flex; align-items: center; gap: 12px; z-index: 1000;
+      transform: translateY(100px); opacity: 0; transition: all 0.3s ease; max-width: calc(100vw - 48px);
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    /* ===== Devices Alert button + drawer ===== */
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .btn-devices {
+      position: relative; display: inline-flex; align-items: center; gap: 8px;
+      background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color);
+      padding: 8px 14px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-devices:hover { border-color: var(--accent-secondary); color: var(--accent-secondary); }
+    .btn-devices.has-pending { border-color: var(--warning); color: var(--warning); animation: pulse 1.6s infinite; }
+    .notif-dot {
+      background: var(--danger); color: #fff; border-radius: 999px; min-width: 20px; height: 20px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; padding: 0 6px;
+    }
+    .drawer-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1500;
+      display: flex; justify-content: flex-end;
+    }
+    .drawer {
+      width: 100%; max-width: 440px; height: 100%; overflow-y: auto;
+      background: var(--bg-card); border-left: 1px solid var(--border-color);
+      padding: 22px 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.6);
+      animation: drawerIn 0.22s ease-out;
+    }
+    @keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .drawer-close {
+      background: #222d42; border: 1px solid var(--border-color); color: var(--text-muted);
+      width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+    }
+    .drawer-close:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+
+    /* ===== Owner alert popup ===== */
+    .alert-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2000;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      backdrop-filter: blur(3px);
+    }
+    .alert-box {
+      background: var(--bg-card); border: 2px solid var(--warning); border-radius: 16px;
+      padding: 28px 24px; width: 100%; max-width: 420px; text-align: center;
+      box-shadow: 0 0 40px rgba(245,158,11,0.35);
+      animation: alertPop 0.25s ease-out;
+    }
+    @keyframes alertPop { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .alert-box h3 { font-family: 'Chakra Petch', sans-serif; font-size: 1.4rem; color: var(--warning); margin-bottom: 6px; }
+    .alert-box p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 8px; }
+    .alert-buttons { display: flex; gap: 12px; margin-top: 18px; }
+    .alert-buttons .btn { flex: 1; padding: 14px; font-size: 1rem; }
+    .btn-allow-big { background: var(--success); color: #fff; }
+    .btn-deny-big { background: var(--danger); color: #fff; }
+
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
 
-<div id="loadingSection" class="center-wrap hidden">
-  <div class="panel center">
-    <div class="status-badge load"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
-    <h1>Checking access</h1><p class="lead" style="margin-bottom:0">One moment please.</p>
-  </div>
-</div>
-
-<div id="authSection" class="center-wrap">
-  <div class="login">
-    <div class="login-art">
-      <div class="brand"><div class="brand-mark"><i class="fa-solid fa-lightbulb"></i></div><span>LED Sign Controller</span></div>
-      <div>
-        <div class="led-screen"><div class="led-text" style="left:22px">WELCOME</div></div>
-        <h2 style="margin-top:24px">Update your sign from anywhere.</h2>
-        <p class="sub">Write your messages, preview them, and send them to the sign in one tap.</p>
-      </div>
+  <!-- ================= LOADING ================= -->
+  <div id="loadingSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
+      <p style="margin:0;">Checking device access...</p>
     </div>
-    <div class="login-form">
-      <h1>Sign in</h1>
-      <p class="lead">Manage what your LED sign shows.</p>
-      <div id="signinStart">
-        <button type="button" class="btn btn-primary btn-block" id="btnStartSignin" style="padding:14px"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in</button>
+  </div>
+
+  <!-- ================= AUTH SECTION ================= -->
+  <div id="authSection" class="container auth-container">
+    <div class="card">
+      <div style="font-size: 2.5rem; color: var(--accent); margin-bottom: 12px;">
+        <i class="fa-solid fa-lock"></i>
       </div>
-      <form id="loginForm" class="hidden">
-        <div class="field"><label for="loginEmail">Email</label>
-          <input class="input" type="email" id="loginEmail" value="kartiksugandhi7@gmail.com" required readonly /></div>
-        <div class="field"><label for="loginPassword">Password</label>
-          <div class="pw"><input class="input" type="password" id="loginPassword" required placeholder="Enter your password" autocomplete="current-password" autofocus />
-          <button type="button" id="togglePw" aria-label="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
-        <div class="field"><label for="deviceNameInput">Name of this device</label>
-          <input class="input" type="text" id="deviceNameInput" maxlength="60" placeholder="For example: Kartik's phone" />
-          <div class="help">The owner sees this name when you ask for access.</div></div>
-        <div class="check-row"><input type="checkbox" id="rememberMe" checked /><label for="rememberMe">Keep me signed in on this device</label></div>
-        <div class="notice"><i class="fa-solid fa-circle-info"></i><span>New devices must be approved by the owner before they can open the dashboard.</span></div>
-        <button type="submit" class="btn btn-primary btn-block" id="btnLogin"><i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in</button>
+      <h2>P10 HUB12 DISPLAY</h2>
+      <p style="color: var(--accent-secondary); font-weight: 500; margin-bottom: 16px;">
+        <i class="fa-solid fa-shield-halved"></i> Password + Device Approval
+      </p>
+
+      <div style="background: rgba(255, 69, 0, 0.1); border: 1px solid var(--accent); border-radius: 8px; padding: 10px; margin-bottom: 20px; font-size: 0.85rem; color: #ff9977;">
+        <i class="fa-solid fa-user-shield"></i> Authorized User:<br>
+        <strong style="color: #fff; font-size: 0.95rem;">kartiksugandhi7@gmail.com</strong>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label><i class="fa-solid fa-envelope"></i> Email Address</label>
+          <input type="email" id="loginEmail" value="kartiksugandhi7@gmail.com" required readonly style="opacity: 0.9; cursor: not-allowed; background: #111827;" />
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-key"></i> Website Password</label>
+          <input type="password" id="loginPassword" required placeholder="Enter password to unlock" autocomplete="current-password" autofocus />
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-mobile-screen"></i> Device Name (so the owner can recognise you)</label>
+          <input type="text" id="deviceNameInput" maxlength="60" placeholder="e.g. Kartik's Phone" />
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;">
+          <input type="checkbox" id="rememberMe" checked style="accent-color: var(--accent); cursor: pointer; width: 16px; height: 16px;" />
+          <label for="rememberMe" style="cursor: pointer; margin: 0; color: var(--text-muted);">Stay logged in on this device</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">
+          <i class="fa-solid fa-unlock-keyhole"></i> Unlock Dashboard
+        </button>
       </form>
     </div>
   </div>
-</div>
 
-<div id="pendingSection" class="center-wrap hidden">
-  <div class="panel center">
-    <div class="status-badge wait"><i class="fa-solid fa-hourglass-half"></i></div>
-    <h1>Waiting for the owner</h1>
-    <p class="lead">Your request was sent. This page opens by itself as soon as the owner allows this device.</p>
-    <div class="device-chip"><i class="fa-solid fa-mobile-screen"></i> <span id="pendingDeviceName">Device</span></div>
-    <button class="btn btn-quiet btn-block" id="btnCancelPending">Cancel and go back</button>
-  </div>
-</div>
-
-<div id="deniedSection" class="center-wrap hidden">
-  <div class="panel center">
-    <div class="status-badge no"><i class="fa-solid fa-ban"></i></div>
-    <h1>Access denied</h1>
-    <p class="lead">The owner did not allow this device to use the website. Ask the owner if you think this is a mistake.</p>
-    <div class="device-chip"><i class="fa-solid fa-mobile-screen"></i> <span id="deniedDeviceName">Device</span></div>
-    <button class="btn btn-quiet btn-block" id="btnCancelDenied">Back to sign in</button>
-  </div>
-</div>
-
-<div id="dashboardSection" class="hidden">
-  <header class="topbar"><div class="topbar-inner">
-    <div class="brand"><div class="brand-mark"><i class="fa-solid fa-lightbulb"></i></div><span>LED Sign Controller</span></div>
-    <div class="top-actions">
-      <button class="btn btn-quiet btn-sm devices-btn hidden" id="btnDevices"><i class="fa-solid fa-shield-halved"></i> Devices <span class="count hidden" id="devBtnCount">0</span></button>
-      <div class="account"><div class="avatar" id="avatarLetter">K</div><span class="email" id="userEmailBadge">user@email.com</span></div>
-      <button class="btn btn-quiet btn-sm" id="btnLogout"><i class="fa-solid fa-right-from-bracket"></i> Log out</button>
+  <!-- ================= PENDING APPROVAL ================= -->
+  <div id="pendingSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-hourglass-half"></i></div>
+      <h2 style="color: var(--warning); text-shadow: none;">Waiting for Approval</h2>
+      <p>The owner has been notified. This page will open automatically once your device is allowed.</p>
+      <div class="device-chip" id="pendingDeviceName">Device</div>
+      <button class="btn btn-secondary btn-block" id="btnCancelPending"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
     </div>
-  </div></header>
+  </div>
 
-  <main>
-    <div class="page-title"><h1>Your sign</h1><p>Edit the messages, check the preview, then send them to the sign.</p></div>
+  <!-- ================= DENIED ================= -->
+  <div id="deniedSection" class="container auth-container hidden">
+    <div class="card">
+      <div class="status-icon denied"><i class="fa-solid fa-ban"></i></div>
+      <h2 style="color: var(--danger); text-shadow: none;">Access Denied</h2>
+      <p>The owner has denied access for this device.</p>
+      <div class="device-chip" id="deniedDeviceName">Device</div>
+      <button class="btn btn-secondary btn-block" id="btnCancelDenied"><i class="fa-solid fa-arrow-left"></i> Back to Login</button>
+    </div>
+  </div>
 
-    <section class="card sign-card" aria-label="Live preview">
-      <div class="card-head">
-        <div><h2>Live preview</h2><p>This is how your messages will scroll on the sign.</p></div>
-        <div class="preview-meta"><span class="live-dot"></span><span id="previewStatus">Starting preview</span></div>
+  <!-- ================= DASHBOARD SECTION ================= -->
+  <div id="dashboardSection" class="container hidden">
+    <header>
+      <div class="logo">
+        <i class="fa-solid fa-display"></i>
+        <span>P10 5-PANEL CONTROLLER</span>
       </div>
-      <div class="sign-frame"><div class="led-screen" id="ledScreen"><div class="led-text" id="ledText">Loading</div></div></div>
-    </section>
+      <div class="header-right">
+      <button class="btn-devices hidden" id="btnDevices" title="Devices Alert">
+        <i class="fa-solid fa-bell"></i> Devices Alert
+        <span class="notif-dot hidden" id="devBtnCount">0</span>
+      </button>
+      <div class="user-pill">
+        <i class="fa-solid fa-user-circle" style="color: var(--accent);"></i>
+        <span id="userEmailBadge">user@email.com</span>
+        <button class="btn-logout" id="btnLogout" title="Log Out">
+          <i class="fa-solid fa-power-off"></i>
+        </button>
+      </div>
+      </div>
+    </header>
 
-    <div class="layout">
-      <section class="card" aria-label="Messages">
-        <div class="card-head">
-          <div><h2>Messages</h2><p>The sign shows them one after another, in this order.</p></div>
-          <span class="preview-meta" id="msgCountBadge">3 messages</span>
+    <!-- Device access manager (admin device only) -->
+    <div class="drawer-overlay hidden" id="deviceDrawerOverlay">
+    <div class="drawer" id="devicePanel">
+      <div class="card-title" style="justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-laptop-mobile"></i>
+          <span>Devices Alert</span>
+          <span class="badge pending hidden" id="pendingCountBadge">0 waiting</span>
         </div>
-        <div class="msg-list" id="msgListContainer"></div>
-        <button class="btn btn-quiet btn-block" id="btnAddSentence"><i class="fa-solid fa-plus"></i> Add message</button>
-      </section>
+        <button class="drawer-close" id="btnCloseDrawer" title="Close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="device-list" id="deviceList"></div>
 
-      <section class="card" aria-label="Display settings">
-        <div class="card-head"><div><h2>Display settings</h2><p>Control how the messages move.</p></div></div>
-        <div class="setting">
-          <div class="setting-top"><strong>Scroll speed</strong><span class="setting-value" id="speedVal">Fast</span></div>
-          <div class="help">How quickly the text moves across the sign.</div>
-          <input type="range" id="speedSlider" min="2" max="16" value="13" step="1" aria-label="Scroll speed" />
-          <div class="range-ends"><span>Slower</span><span>Faster</span></div>
+      <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-color);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:0.85rem; font-weight:600; color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i> Failed login attempts (wrong password)</span>
+          <button class="btn-sm btn-remove" id="btnClearAttempts">Clear</button>
         </div>
-        <div class="setting">
-          <div class="setting-top"><strong>Pause between messages</strong><span class="setting-value" id="delayVal">2 seconds</span></div>
-          <div class="help">How long the sign waits before the next message.</div>
-          <input type="range" id="delaySlider" min="0" max="10" value="2" step="0.5" aria-label="Pause between messages" />
-          <div class="range-ends"><span>No pause</span><span>10 seconds</span></div>
+        <div id="attemptList"></div>
+      </div>
+    </div>
+    </div>
+
+    <div class="card" style="padding: 16px;">
+      <div class="led-preview-wrapper">
+        <div class="led-banner-info">
+          <span><i class="fa-solid fa-satellite-dish"></i> LIVE HARDWARE PREVIEW (5 PANELS: 160 x 16 px)</span>
+          <span id="previewStatus">Sequence Running...</span>
         </div>
-      </section>
+        <div class="led-display-screen" id="ledScreen">
+          <div class="led-scrolling-text" id="ledText">Initializing display...</div>
+        </div>
+      </div>
     </div>
 
-    <div class="save-bar">
-      <div class="save-status" id="saveStatus"><span class="dot"></span><span id="saveStatusText">The sign is up to date</span></div>
-      <button class="btn btn-primary" id="btnSaveFirebase"><i class="fa-solid fa-paper-plane"></i> Send to sign</button>
-    </div>
-  </main>
-</div>
+    <div class="card">
+      <div class="card-title">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Display Speed & Interval Settings</span>
+      </div>
+      <div class="controls-grid">
+        <div class="slider-box">
+          <div class="slider-header">
+            <span><i class="fa-solid fa-gauge-high"></i> Scrolling Speed</span>
+            <span class="slider-val" id="speedVal">25 ms</span>
+          </div>
+          <input type="range" id="speedSlider" min="10" max="80" value="25" step="5" />
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+            <span>Fast (10ms)</span><span>Balanced (25ms)</span><span>Slow (80ms)</span>
+          </div>
+        </div>
 
-<div class="drawer-overlay hidden" id="deviceDrawerOverlay">
-  <aside class="drawer" role="dialog" aria-label="Devices">
-    <div class="drawer-head">
-      <div><h2>Devices</h2><p>Decide which devices can use this website.</p></div>
-      <button class="icon-btn" id="btnCloseDrawer" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        <div class="slider-box">
+          <div class="slider-header">
+            <span><i class="fa-solid fa-hourglass-half"></i> Delay Between Sentences</span>
+            <span class="slider-val" id="delayVal">2.0 s</span>
+          </div>
+          <input type="range" id="delaySlider" min="0" max="10" value="2" step="0.5" />
+          <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-muted); margin-top:6px;">
+            <span>No Delay (0s)</span><span>Normal (2-3s)</span><span>Long (10s)</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <span id="pendingCountBadge" class="hidden"></span>
-    <div id="deviceList"></div>
-    <div class="group">
-      <div class="group-title" style="justify-content:space-between"><span>Wrong password attempts</span><button class="link-btn" id="btnClearAttempts">Clear list</button></div>
-      <div id="attemptList"></div>
-    </div>
-  </aside>
-</div>
 
-<div class="alert-overlay hidden" id="accessAlert">
-  <div class="alert-box" role="alertdialog" aria-labelledby="alertTitle">
-    <div class="status-badge wait"><i class="fa-solid fa-bell"></i></div>
-    <h3 id="alertTitle">Someone wants to sign in</h3>
-    <p>They entered your email and password on this device:</p>
-    <div class="device-chip" style="margin-top:12px"><i class="fa-solid fa-mobile-screen"></i> <span id="alertDeviceName">Device</span></div>
-    <p id="alertDeviceTime" style="font-size:.85rem"></p>
-    <p id="alertQueue" style="font-size:.85rem"></p>
-    <div class="alert-buttons">
-      <button class="btn btn-bad" id="alertDeny"><i class="fa-solid fa-xmark"></i> Deny</button>
-      <button class="btn btn-ok" id="alertAllow"><i class="fa-solid fa-check"></i> Allow</button>
+    <div class="card">
+      <div class="card-title" style="justify-content: space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <i class="fa-solid fa-list-ol"></i>
+          <span>Sentence Sequence (Scrolls in order)</span>
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-muted);" id="msgCountBadge">3 sentences</span>
+      </div>
+
+      <div class="msg-list" id="msgListContainer"></div>
+
+      <button class="btn btn-secondary" id="btnAddSentence" style="width: 100%; margin-bottom: 20px;">
+        <i class="fa-solid fa-plus"></i> Add New Sentence
+      </button>
+
+      <button class="btn btn-primary btn-block" id="btnSaveFirebase" style="font-size: 1.05rem; padding: 14px;">
+        <i class="fa-solid fa-cloud-arrow-up"></i> Update & Push to LED Display
+      </button>
     </div>
   </div>
-</div>
 
-<div class="toast" id="toast" role="status" aria-live="polite"><i class="fa-solid fa-circle-check"></i><span id="toastMsg"></span></div>
+  <!-- ================= OWNER ALERT POPUP ================= -->
+  <div class="alert-overlay hidden" id="accessAlert">
+    <div class="alert-box">
+      <div class="status-icon pending pulse"><i class="fa-solid fa-bell"></i></div>
+      <h3>Login Request</h3>
+      <p>Someone logged in with your ID &amp; password from:</p>
+      <div class="device-chip" id="alertDeviceName">Device</div>
+      <p id="alertDeviceTime" style="font-size:0.8rem; margin-bottom:0;"></p>
+      <p id="alertQueue" style="font-size:0.75rem; margin-bottom:0;"></p>
+      <div class="alert-buttons">
+        <button class="btn btn-deny-big" id="alertDeny"><i class="fa-solid fa-xmark"></i> Deny</button>
+        <button class="btn btn-allow-big" id="alertAllow"><i class="fa-solid fa-check"></i> Allow</button>
+      </div>
+    </div>
+  </div>
 
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyA7URhxbcFt-LDS5lTRh99KbgTZUGW0mQU",
-  authDomain: "textw-6b559.firebaseapp.com",
-  databaseURL: "https://textw-6b559-default-rtdb.firebaseio.com",
-  projectId: "textw-6b559",
-  storageBucket: "textw-6b559.firebasestorage.app",
-  messagingSenderId: "382926990007",
-  appId: "1:382926990007:web:25145cded6c1ff36673b32"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const $ = (id) => document.getElementById(id);
+  <div class="toast" id="toast">
+    <i class="fa-solid fa-circle-check" style="color: var(--success); font-size: 1.2rem;"></i>
+    <span id="toastMsg">Changes updated successfully!</span>
+  </div>
 
-const sections = { loading: $("loadingSection"), auth: $("authSection"), pending: $("pendingSection"), denied: $("deniedSection"), dashboard: $("dashboardSection") };
-const loginForm = $("loginForm"), loginEmail = $("loginEmail"), loginPassword = $("loginPassword"), deviceNameInput = $("deviceNameInput"),
-  rememberMe = $("rememberMe"), btnLogin = $("btnLogin"), btnLogout = $("btnLogout"), userEmailBadge = $("userEmailBadge"),
-  avatarLetter = $("avatarLetter"), deviceList = $("deviceList"), attemptList = $("attemptList"), btnDevices = $("btnDevices"),
-  devBtnCount = $("devBtnCount"), drawerOverlay = $("deviceDrawerOverlay");
+  <script>
+    /* ================================================================
+       FIREBASE CONFIGURATION
+       ================================================================ */
+    const firebaseConfig = {
+      apiKey: "AIzaSyA7URhxbcFt-LDS5lTRh99KbgTZUGW0mQU",
+      authDomain: "textw-6b559.firebaseapp.com",
+      databaseURL: "https://textw-6b559-default-rtdb.firebaseio.com",
+      projectId: "textw-6b559",
+      storageBucket: "textw-6b559.firebasestorage.app",
+      messagingSenderId: "382926990007",
+      appId: "1:382926990007:web:25145cded6c1ff36673b32"
+    };
 
-function openDrawer() { drawerOverlay.classList.remove("hidden"); }
-function closeDrawer() { drawerOverlay.classList.add("hidden"); }
-btnDevices.addEventListener("click", openDrawer);
-$("btnCloseDrawer").addEventListener("click", closeDrawer);
-drawerOverlay.addEventListener("click", (e) => { if (e.target === drawerOverlay) closeDrawer(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDrawer(); });
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-$("togglePw").addEventListener("click", () => {
-  const show = loginPassword.type === "password";
-  loginPassword.type = show ? "text" : "password";
-  $("togglePw").innerHTML = '<i class="fa-solid ' + (show ? "fa-eye-slash" : "fa-eye") + '"></i>';
-  $("togglePw").setAttribute("aria-label", show ? "Hide password" : "Show password");
-});
+    // DOM
+    const sections = {
+      loading: document.getElementById("loadingSection"),
+      auth: document.getElementById("authSection"),
+      pending: document.getElementById("pendingSection"),
+      denied: document.getElementById("deniedSection"),
+      dashboard: document.getElementById("dashboardSection")
+    };
+    const loginForm = document.getElementById("loginForm");
+    const loginEmail = document.getElementById("loginEmail");
+    const loginPassword = document.getElementById("loginPassword");
+    const deviceNameInput = document.getElementById("deviceNameInput");
+    const rememberMe = document.getElementById("rememberMe");
+    const btnLogin = document.getElementById("btnLogin");
+    const btnLogout = document.getElementById("btnLogout");
+    const userEmailBadge = document.getElementById("userEmailBadge");
+    const devicePanel = document.getElementById("devicePanel");
+    const deviceList = document.getElementById("deviceList");
+    const attemptList = document.getElementById("attemptList");
+    const pendingCountBadge = document.getElementById("pendingCountBadge");
+    const btnDevices = document.getElementById("btnDevices");
+    const devBtnCount = document.getElementById("devBtnCount");
+    const drawerOverlay = document.getElementById("deviceDrawerOverlay");
 
-const AUTHORIZED_CREDENTIALS = { email: "kartiksugandhi7@gmail.com", password: "8626052234@Kartik" };
+    function openDrawer() { drawerOverlay.classList.remove("hidden"); }
+    function closeDrawer() { drawerOverlay.classList.add("hidden"); }
+    btnDevices.addEventListener("click", openDrawer);
+    document.getElementById("btnCloseDrawer").addEventListener("click", closeDrawer);
+    drawerOverlay.addEventListener("click", (e) => { if (e.target === drawerOverlay) closeDrawer(); });
 
-const speedSlider = $("speedSlider"), speedVal = $("speedVal"), delaySlider = $("delaySlider"), delayVal = $("delayVal"),
-  msgListContainer = $("msgListContainer"), msgCountBadge = $("msgCountBadge"), btnAddSentence = $("btnAddSentence"),
-  btnSaveFirebase = $("btnSaveFirebase"), saveStatus = $("saveStatus"), saveStatusText = $("saveStatusText"),
-  ledScreen = $("ledScreen"), ledText = $("ledText"), previewStatus = $("previewStatus");
+    const AUTHORIZED_CREDENTIALS = {
+      email: "kartiksugandhi7@gmail.com",
+      password: "8626052234@Kartik"
+    };
 
-let messagesState = ["WELCOME TO OUR DIGITAL HUB", "SPECIAL OFFER 50% OFF TODAY", "THANK YOU FOR VISITING US"];
-let scrollSpeedMs = 25, delayBetweenSec = 2;
-let simIndex = 0, simPos = 0, simTimer = null, simState = "SCROLL", simDelayTimeout = null;
+    const speedSlider = document.getElementById("speedSlider");
+    const speedVal = document.getElementById("speedVal");
+    const delaySlider = document.getElementById("delaySlider");
+    const delayVal = document.getElementById("delayVal");
+    const msgListContainer = document.getElementById("msgListContainer");
+    const msgCountBadge = document.getElementById("msgCountBadge");
+    const btnAddSentence = document.getElementById("btnAddSentence");
+    const btnSaveFirebase = document.getElementById("btnSaveFirebase");
+    const ledScreen = document.getElementById("ledScreen");
+    const ledText = document.getElementById("ledText");
+    const previewStatus = document.getElementById("previewStatus");
 
-function levelToMs(l) { return 90 - l * 5; }
-function msToLevel(ms) { return Math.min(16, Math.max(2, Math.round((90 - ms) / 5))); }
-function speedWord(l) { return l <= 6 ? "Slow" : l <= 11 ? "Medium" : "Fast"; }
-function delayWord(s) { return s === 0 ? "No pause" : (s === 1 ? "1 second" : s + " seconds"); }
+    // Local state
+    let messagesState = ["WELCOME TO OUR DIGITAL HUB", "SPECIAL OFFER 50% OFF TODAY", "THANK YOU FOR VISITING US"];
+    let scrollSpeedMs = 25;
+    let delayBetweenSec = 2;
+    let simIndex = 0, simPos = 0, simTimer = null, simState = "SCROLL", simDelayTimeout = null;
 
-function markDirty() { saveStatus.classList.add("dirty"); saveStatusText.textContent = "You have changes that are not on the sign yet"; }
-function markClean() { saveStatus.classList.remove("dirty"); saveStatusText.textContent = "The sign is up to date"; }
-
-/* ---------- Device identity ---------- */
-function newId() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-}
-let myDeviceId = localStorage.getItem("p10_device_id");
-if (!myDeviceId) { myDeviceId = newId(); localStorage.setItem("p10_device_id", myDeviceId); }
-const myDeviceRef = db.ref("devices/" + myDeviceId);
-
-function detectDeviceName() {
-  const ua = navigator.userAgent || "";
-  let os = "Unknown device", model = null;
-  if (/Android/i.test(ua)) {
-    os = "Android";
-    const m = ua.match(/Android [\d.]+;\s*([^;)]+?)(?:\s+Build|\)|;)/);
-    if (m && m[1] && m[1].trim().length > 1) model = m[1].trim();
-  } else if (/iPhone/i.test(ua)) os = "iPhone";
-  else if (/iPad/i.test(ua)) os = "iPad";
-  else if (/Windows/i.test(ua)) os = "Windows PC";
-  else if (/Mac OS X/i.test(ua)) os = "Mac";
-  else if (/CrOS/i.test(ua)) os = "Chromebook";
-  else if (/Linux/i.test(ua)) os = "Linux PC";
-  let browser = "Browser";
-  if (/Edg\//i.test(ua)) browser = "Edge";
-  else if (/OPR\//i.test(ua)) browser = "Opera";
-  else if (/SamsungBrowser/i.test(ua)) browser = "Samsung Internet";
-  else if (/Firefox/i.test(ua)) browser = "Firefox";
-  else if (/Chrome|CriOS/i.test(ua)) browser = "Chrome";
-  else if (/Safari/i.test(ua)) browser = "Safari";
-  return (model || os) + " - " + browser;
-}
-function getMyDeviceName() { return deviceNameInput.value.trim() || detectDeviceName(); }
-deviceNameInput.value = localStorage.getItem("p10_device_label") || detectDeviceName();
-
-function showSection(name) {
-  Object.keys(sections).forEach((k) => sections[k].classList.toggle("hidden", k !== name));
-  if (name === "auth") { $("signinStart").classList.remove("hidden"); loginForm.classList.add("hidden"); }
-}
-$("btnStartSignin").addEventListener("click", () => {
-  $("signinStart").classList.add("hidden");
-  loginForm.classList.remove("hidden");
-  loginPassword.focus();
-});
-
-/* ---------- Login flow ---------- */
-let isDashboardUnlocked = false, myIsAdmin = false, myWatcher = null;
-
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = loginEmail.value.trim().toLowerCase(), pass = loginPassword.value, deviceName = getMyDeviceName();
-  if (email !== AUTHORIZED_CREDENTIALS.email.toLowerCase() || pass !== AUTHORIZED_CREDENTIALS.password) {
-    showToast("Wrong password. Check it and try again.", true);
-    loginPassword.value = ""; loginPassword.focus();
-    logFailedAttempt(deviceName);
-    return;
-  }
-  btnLogin.disabled = true;
-  btnLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in';
-  try {
-    localStorage.setItem("p10_device_label", deviceName);
-    await registerDevice(deviceName);
-    if (rememberMe.checked) { localStorage.setItem("p10_web_auth", "unlocked"); sessionStorage.removeItem("p10_web_auth"); }
-    else { sessionStorage.setItem("p10_web_auth", "unlocked"); localStorage.removeItem("p10_web_auth"); }
-    watchMyDevice();
-  } catch (err) {
-    console.error(err);
-    showToast("Could not connect to the server: " + err.message, true);
-  } finally {
-    btnLogin.disabled = false;
-    btnLogin.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket"></i> Sign in';
-    loginPassword.value = "";
-  }
-});
-
-async function registerDevice(name) {
-  const now = Date.now();
-  const snap = await myDeviceRef.once("value");
-  if (snap.exists()) { await myDeviceRef.update({ name, userAgent: navigator.userAgent, lastSeen: now }); return; }
-  const all = await db.ref("devices").once("value");
-  const isFirst = !all.exists();
-  await myDeviceRef.set({
-    name, userAgent: navigator.userAgent, platform: navigator.platform || "",
-    firstSeen: now, lastSeen: now, status: isFirst ? "approved" : "pending", isAdmin: isFirst
-  });
-}
-
-function logFailedAttempt(name) {
-  db.ref("loginAttempts").push({ deviceId: myDeviceId, name, userAgent: navigator.userAgent, time: Date.now() }).catch(() => {});
-}
-
-function watchMyDevice() {
-  stopWatchingMyDevice();
-  showSection("loading");
-  myWatcher = myDeviceRef.on("value", (snap) => {
-    const v = snap.val();
-    if (!v) {
-      clearAuthFlags(); lockDashboard(); stopWatchingMyDevice(); showSection("auth");
-      showToast("This device no longer has access. Please sign in again.", true);
-      return;
+    /* ================================================================
+       DEVICE IDENTITY
+       ================================================================ */
+    function newId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
     }
-    myIsAdmin = !!v.isAdmin;
-    $("pendingDeviceName").textContent = v.name || "Unknown device";
-    $("deniedDeviceName").textContent = v.name || "Unknown device";
-    if (v.status === "approved") {
-      if (!isDashboardUnlocked) unlockDashboard();
-      else btnDevices.classList.toggle("hidden", !myIsAdmin);
-    } else if (v.status === "denied") { lockDashboard(); showSection("denied"); }
-    else { lockDashboard(); showSection("pending"); }
-  }, (error) => {
-    console.error("Device watch error:", error);
-    showSection("auth");
-    showToast("Connection problem: " + error.message, true);
-  });
-}
-function stopWatchingMyDevice() { if (myWatcher) { myDeviceRef.off("value", myWatcher); myWatcher = null; } }
-function clearAuthFlags() { localStorage.removeItem("p10_web_auth"); sessionStorage.removeItem("p10_web_auth"); }
-function goBackToLogin() { clearAuthFlags(); stopWatchingMyDevice(); lockDashboard(); showSection("auth"); }
 
-$("btnCancelPending").addEventListener("click", goBackToLogin);
-$("btnCancelDenied").addEventListener("click", goBackToLogin);
-btnLogout.addEventListener("click", () => { goBackToLogin(); showToast("You are signed out."); });
+    // A permanent random ID for this browser (stays until site data is cleared)
+    let myDeviceId = localStorage.getItem("p10_device_id");
+    if (!myDeviceId) {
+      myDeviceId = newId();
+      localStorage.setItem("p10_device_id", myDeviceId);
+    }
+    let myDeviceRef = db.ref("devices/" + myDeviceId);
 
-function unlockDashboard() {
-  isDashboardUnlocked = true;
-  showSection("dashboard");
-  userEmailBadge.textContent = AUTHORIZED_CREDENTIALS.email;
-  avatarLetter.textContent = AUTHORIZED_CREDENTIALS.email.charAt(0).toUpperCase();
-  btnDevices.classList.toggle("hidden", !myIsAdmin);
-  myDeviceRef.update({ lastSeen: Date.now() }).catch(() => {});
-  if (myIsAdmin) startAdminListeners();
-  loadConfigFromFirebase();
-}
-function lockDashboard() {
-  isDashboardUnlocked = false;
-  if (simTimer) clearInterval(simTimer);
-  if (simDelayTimeout) clearTimeout(simDelayTimeout);
-  stopAdminListeners();
-  loginPassword.value = "";
-}
-function checkAuthOnLoad() {
-  const remembered = localStorage.getItem("p10_web_auth") === "unlocked" || sessionStorage.getItem("p10_web_auth") === "unlocked";
-  if (remembered) watchMyDevice(); else showSection("auth");
-}
+    function detectDeviceName() {
+      const ua = navigator.userAgent || "";
+      let os = "Unknown device";
+      let model = null;
 
-/* ---------- Owner: device manager ---------- */
-let devicesListener = null, attemptsListener = null, knownPendingIds = null;
+      if (/Android/i.test(ua)) {
+        os = "Android";
+        const m = ua.match(/Android [\d.]+;\s*([^;)]+?)(?:\s+Build|\)|;)/);
+        if (m && m[1] && m[1].trim().length > 1) model = m[1].trim();
+      } else if (/iPhone/i.test(ua)) os = "iPhone";
+      else if (/iPad/i.test(ua)) os = "iPad";
+      else if (/Windows/i.test(ua)) os = "Windows PC";
+      else if (/Mac OS X/i.test(ua)) os = "Mac";
+      else if (/CrOS/i.test(ua)) os = "Chromebook";
+      else if (/Linux/i.test(ua)) os = "Linux PC";
 
-function startAdminListeners() {
-  stopAdminListeners();
-  knownPendingIds = null;
-  if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+      let browser = "Browser";
+      if (/Edg\//i.test(ua)) browser = "Edge";
+      else if (/OPR\//i.test(ua)) browser = "Opera";
+      else if (/SamsungBrowser/i.test(ua)) browser = "Samsung Internet";
+      else if (/Firefox/i.test(ua)) browser = "Firefox";
+      else if (/Chrome|CriOS/i.test(ua)) browser = "Chrome";
+      else if (/Safari/i.test(ua)) browser = "Safari";
 
-  devicesListener = db.ref("devices").on("value", (snap) => {
-    const data = snap.val() || {};
-    const list = Object.keys(data).map((id) => Object.assign({ id }, data[id]));
-    renderDevices(list);
-    updateAlertModal(list);
-    const pendingNow = list.filter((d) => d.status === "pending").map((d) => d.id);
-    if (knownPendingIds !== null) {
-      list.filter((d) => d.status === "pending" && !knownPendingIds.includes(d.id)).forEach((d) => {
-        showToast("New request from " + (d.name || "an unknown device"), true);
-        notifyOwner(d);
+      return (model || os) + " - " + browser;
+    }
+
+    function getMyDeviceName() {
+      const typed = deviceNameInput.value.trim();
+      return typed || detectDeviceName();
+    }
+
+    deviceNameInput.value = localStorage.getItem("p10_device_label") || detectDeviceName();
+
+    /* ================================================================
+       SECTION SWITCHING
+       ================================================================ */
+    function showSection(name) {
+      Object.keys(sections).forEach((k) => sections[k].classList.toggle("hidden", k !== name));
+    }
+
+    /* ================================================================
+       LOGIN FLOW: password -> register device -> wait for approval
+       ================================================================ */
+    let isDashboardUnlocked = false;
+    let myIsAdmin = false;
+    let myWatcher = null;
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const enteredEmail = loginEmail.value.trim().toLowerCase();
+      const enteredPassword = loginPassword.value;
+      const deviceName = getMyDeviceName();
+
+      if (enteredEmail !== AUTHORIZED_CREDENTIALS.email.toLowerCase() ||
+          enteredPassword !== AUTHORIZED_CREDENTIALS.password) {
+        showToast("Access Denied: Incorrect Password!", true);
+        loginPassword.value = "";
+        loginPassword.focus();
+        logFailedAttempt(deviceName);
+        return;
+      }
+
+      btnLogin.disabled = true;
+      btnLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+
+      try {
+        localStorage.setItem("p10_device_label", deviceName);
+        await registerDevice(deviceName);
+
+        // remember this login (device approval is still checked live on every load)
+        if (rememberMe.checked) {
+          localStorage.setItem("p10_web_auth", "unlocked");
+          sessionStorage.removeItem("p10_web_auth");
+        } else {
+          sessionStorage.setItem("p10_web_auth", "unlocked");
+          localStorage.removeItem("p10_web_auth");
+        }
+        watchMyDevice();
+      } catch (err) {
+        console.error(err);
+        showToast("Could not reach Firebase: " + err.message, true);
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.innerHTML = '<i class="fa-solid fa-unlock-keyhole"></i> Unlock Dashboard';
+        loginPassword.value = "";
+      }
+    });
+
+    async function registerDevice(name) {
+      const now = Date.now();
+      const snap = await myDeviceRef.once("value");
+
+      if (snap.exists()) {
+        // Known device: keep its status, just refresh info
+        await myDeviceRef.update({ name: name, userAgent: navigator.userAgent, lastSeen: now });
+        return;
+      }
+
+      // Brand-new device. If NO devices exist yet, this one becomes the owner (auto-approved).
+      const all = await db.ref("devices").once("value");
+      const isFirst = !all.exists();
+
+      await myDeviceRef.set({
+        name: name,
+        userAgent: navigator.userAgent,
+        platform: navigator.platform || "",
+        firstSeen: now,
+        lastSeen: now,
+        status: isFirst ? "approved" : "pending",
+        isAdmin: isFirst
       });
     }
-    knownPendingIds = pendingNow;
-  });
 
-  attemptsListener = db.ref("loginAttempts").limitToLast(10).on("value", (snap) => {
-    const data = snap.val() || {};
-    renderAttempts(Object.keys(data).map((k) => data[k]).sort((a, b) => b.time - a.time));
-  });
-}
-function stopAdminListeners() {
-  if (devicesListener) { db.ref("devices").off("value", devicesListener); devicesListener = null; }
-  if (attemptsListener) { db.ref("loginAttempts").off("value", attemptsListener); attemptsListener = null; }
-  $("accessAlert").classList.add("hidden");
-  closeDrawer(); stopTitleFlash();
-}
-
-function fmtTime(ts) {
-  if (!ts) return "-";
-  return new Date(ts).toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
-
-function renderDevices(list) {
-  list.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-  const pendingCount = list.filter((d) => (d.status || "pending") === "pending").length;
-  devBtnCount.textContent = pendingCount;
-  devBtnCount.classList.toggle("hidden", pendingCount === 0);
-  btnDevices.classList.toggle("has-pending", pendingCount > 0);
-
-  const groups = [
-    { key: "pending", title: "Waiting for your decision", empty: "No one is waiting." },
-    { key: "approved", title: "Allowed devices", empty: "No devices are allowed yet." },
-    { key: "denied", title: "Denied devices", empty: "No devices are denied." }
-  ];
-  deviceList.innerHTML = "";
-  groups.forEach((g) => {
-    const items = list.filter((d) => (d.status || "pending") === g.key);
-    const wrap = document.createElement("div");
-    wrap.className = "group";
-    const title = document.createElement("div");
-    title.className = "group-title";
-    title.innerHTML = `<span>${g.title}</span><span class="count ${g.key === "pending" ? "warn" : ""}">${items.length}</span>`;
-    wrap.appendChild(title);
-    if (items.length === 0) {
-      const empty = document.createElement("div");
-      empty.className = "empty"; empty.textContent = g.empty;
-      wrap.appendChild(empty);
+    function logFailedAttempt(name) {
+      db.ref("loginAttempts").push({
+        deviceId: myDeviceId,
+        name: name,
+        userAgent: navigator.userAgent,
+        time: Date.now()
+      }).catch(() => {});
     }
-    items.forEach((d) => wrap.appendChild(buildDeviceCard(d, g.key)));
-    deviceList.appendChild(wrap);
-  });
-}
 
-function buildDeviceCard(d, status) {
-  const isMe = d.id === myDeviceId;
-  const isPhone = /iPhone|Android|iPad/i.test(d.userAgent || d.name || "");
-  const card = document.createElement("div");
-  card.className = "device" + (status === "pending" ? " waiting" : "");
-  card.innerHTML = `
-    <div class="device-top">
-      <div class="device-icon"><i class="fa-solid ${isPhone ? "fa-mobile-screen" : "fa-desktop"}"></i></div>
-      <div>
-        <div class="device-name">${escapeHtml(d.name || "Unknown device")}
-          ${isMe ? '<span class="tag me">This device</span>' : ""}${d.isAdmin ? '<span class="tag owner">Owner</span>' : ""}</div>
-        <div class="device-meta">${status === "pending" ? "Asked for access " + fmtTime(d.firstSeen) : "Last active " + fmtTime(d.lastSeen)}</div>
-      </div>
-    </div>
-    <div class="device-actions"></div>`;
-  const actions = card.querySelector(".device-actions");
-  const add = (cls, html, disabled, handler) => {
-    const b = document.createElement("button");
-    b.className = "btn btn-sm " + cls; b.innerHTML = html; b.disabled = !!disabled;
-    b.addEventListener("click", handler); actions.appendChild(b);
-  };
-  if (status === "pending") {
-    add("btn-ok", '<i class="fa-solid fa-check"></i> Allow', false, () => setDeviceStatus(d.id, "approved"));
-    add("btn-bad-outline", '<i class="fa-solid fa-xmark"></i> Deny', false, () => setDeviceStatus(d.id, "denied"));
-  } else if (status === "approved") {
-    add("btn-bad-outline", '<i class="fa-solid fa-xmark"></i> Deny', isMe, () => setDeviceStatus(d.id, "denied"));
-  } else {
-    add("btn-ok", '<i class="fa-solid fa-check"></i> Allow', false, () => setDeviceStatus(d.id, "approved"));
-  }
-  add("btn-quiet", '<i class="fa-solid fa-trash-can"></i> Remove', isMe, () => {
-    if (confirm("Remove " + (d.name || "this device") + "? It will need approval again.")) db.ref("devices/" + d.id).remove();
-  });
-  return card;
-}
+    // Live listener on THIS device's record: approve / deny / remove take effect instantly
+    function watchMyDevice() {
+      stopWatchingMyDevice();
+      showSection("loading");
 
-function setDeviceStatus(id, status) {
-  db.ref("devices/" + id).update({ status, decidedAt: Date.now() })
-    .then(() => showToast(status === "approved" ? "Device allowed." : "Device denied."))
-    .catch((err) => showToast("Could not update: " + err.message, true));
-}
+      myWatcher = myDeviceRef.on("value", (snap) => {
+        const v = snap.val();
 
-/* ---------- Login request popup ---------- */
-let alertDeviceId = null, titleFlashTimer = null;
-const baseTitle = document.title;
+        if (!v) {
+          // record was removed by the owner (or never existed)
+          clearAuthFlags();
+          lockDashboard();
+          stopWatchingMyDevice();
+          showSection("auth");
+          showToast("Access for this device was removed. Please log in again.", true);
+          return;
+        }
 
-function updateAlertModal(list) {
-  const pending = list.filter((d) => (d.status || "pending") === "pending" && d.id !== myDeviceId)
-    .sort((a, b) => (a.firstSeen || 0) - (b.firstSeen || 0));
-  const overlay = $("accessAlert");
-  if (pending.length === 0) { alertDeviceId = null; overlay.classList.add("hidden"); stopTitleFlash(); return; }
-  const d = pending[0];
-  alertDeviceId = d.id;
-  $("alertDeviceName").textContent = d.name || "Unknown device";
-  $("alertDeviceTime").textContent = "Asked at " + fmtTime(d.firstSeen);
-  $("alertQueue").textContent = pending.length > 1 ? (pending.length - 1) + " more waiting after this one" : "";
-  overlay.classList.remove("hidden");
-  startTitleFlash();
-}
-$("alertAllow").addEventListener("click", () => { if (alertDeviceId) setDeviceStatus(alertDeviceId, "approved"); });
-$("alertDeny").addEventListener("click", () => { if (alertDeviceId) setDeviceStatus(alertDeviceId, "denied"); });
+        myIsAdmin = !!v.isAdmin;
+        document.getElementById("pendingDeviceName").textContent = v.name || "Unknown device";
+        document.getElementById("deniedDeviceName").textContent = v.name || "Unknown device";
 
-function notifyOwner(d) {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    [880, 660, 880].forEach((freq, i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.value = freq; o.connect(g); g.connect(ctx.destination); g.gain.value = 0.15;
-      o.start(ctx.currentTime + i * 0.22); o.stop(ctx.currentTime + i * 0.22 + 0.16);
+        if (v.status === "approved") {
+          if (!isDashboardUnlocked) unlockDashboard();
+          else btnDevices.classList.toggle("hidden", !myIsAdmin);
+        } else if (v.status === "denied") {
+          lockDashboard();
+          showSection("denied");
+        } else {
+          lockDashboard();
+          showSection("pending");
+        }
+      }, (error) => {
+        console.error("Device watch error:", error);
+        showSection("auth");
+        showToast("Firebase error: " + error.message, true);
+      });
+    }
+
+    function stopWatchingMyDevice() {
+      if (myWatcher) { myDeviceRef.off("value", myWatcher); myWatcher = null; }
+    }
+
+    function clearAuthFlags() {
+      localStorage.removeItem("p10_web_auth");
+      sessionStorage.removeItem("p10_web_auth");
+    }
+
+    function goBackToLogin() {
+      clearAuthFlags();
+      stopWatchingMyDevice();
+      lockDashboard();
+      showSection("auth");
+    }
+
+    document.getElementById("btnCancelPending").addEventListener("click", goBackToLogin);
+    document.getElementById("btnCancelDenied").addEventListener("click", goBackToLogin);
+
+    btnLogout.addEventListener("click", () => {
+      goBackToLogin();
+      showToast("Website locked successfully.");
     });
-  } catch (e) {}
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-  if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
-    try { new Notification("LED Sign Controller", { body: (d.name || "A device") + " is asking for access. Open the page to allow or deny." }); } catch (e) {}
-  }
-}
-function startTitleFlash() {
-  if (titleFlashTimer) return;
-  let on = false;
-  titleFlashTimer = setInterval(() => { document.title = on ? baseTitle : "(!) Access request"; on = !on; }, 1000);
-}
-function stopTitleFlash() {
-  if (titleFlashTimer) { clearInterval(titleFlashTimer); titleFlashTimer = null; }
-  document.title = baseTitle;
-}
 
-function renderAttempts(rows) {
-  attemptList.innerHTML = "";
-  if (rows.length === 0) { attemptList.innerHTML = '<div class="empty">No wrong password attempts.</div>'; return; }
-  rows.forEach((r) => {
-    const el = document.createElement("div");
-    el.className = "attempt";
-    el.innerHTML = `<span><b>${escapeHtml(r.name || "Unknown device")}</b></span><span>${fmtTime(r.time)}</span>`;
-    attemptList.appendChild(el);
-  });
-}
-$("btnClearAttempts").addEventListener("click", () => db.ref("loginAttempts").remove());
-
-/* ---------- Load & save sign config ---------- */
-function applySettingsToUI() {
-  speedSlider.value = msToLevel(scrollSpeedMs);
-  speedVal.textContent = speedWord(parseInt(speedSlider.value));
-  delaySlider.value = delayBetweenSec;
-  delayVal.textContent = delayWord(delayBetweenSec);
-}
-
-function loadConfigFromFirebase() {
-  db.ref("p10_config").once("value", (snapshot) => {
-    const val = snapshot.val();
-    if (val) {
-      if (Array.isArray(val.messages) && val.messages.length > 0) messagesState = val.messages;
-      if (val.speed) scrollSpeedMs = parseInt(val.speed);
-      if (val.delayBetween !== undefined) delayBetweenSec = parseFloat(val.delayBetween) / 1000;
+    function unlockDashboard() {
+      isDashboardUnlocked = true;
+      showSection("dashboard");
+      userEmailBadge.textContent = AUTHORIZED_CREDENTIALS.email;
+      btnDevices.classList.toggle("hidden", !myIsAdmin);
+      myDeviceRef.update({ lastSeen: Date.now() }).catch(() => {});
+      if (myIsAdmin) startAdminListeners();
+      loadConfigFromFirebase();
     }
-    applySettingsToUI(); renderMessageList(); restartSimulation(); markClean();
-  }, (error) => {
-    console.error("Firebase read error:", error);
-    applySettingsToUI(); renderMessageList(); restartSimulation();
-    showToast("Could not load the current messages.", true);
-  });
-}
 
-async function saveToFirebase() {
-  const updated = [];
-  msgListContainer.querySelectorAll(".msg-input").forEach((inp) => { const v = inp.value.trim(); if (v.length > 0) updated.push(v); });
-  if (updated.length === 0) { showToast("Write at least one message before sending.", true); return; }
+    function lockDashboard() {
+      isDashboardUnlocked = false;
+      if (simTimer) clearInterval(simTimer);
+      if (simDelayTimeout) clearTimeout(simDelayTimeout);
+      stopAdminListeners();
+      loginPassword.value = "";
+    }
 
-  messagesState = updated;
-  scrollSpeedMs = levelToMs(parseInt(speedSlider.value));
-  delayBetweenSec = parseFloat(delaySlider.value);
-  const payload = { speed: scrollSpeedMs, delayBetween: Math.round(delayBetweenSec * 1000), messages: messagesState, lastUpdated: Date.now() };
+    // On page load: if this browser was logged in before, re-check its approval live
+    function checkAuthOnLoad() {
+      const remembered =
+        localStorage.getItem("p10_web_auth") === "unlocked" ||
+        sessionStorage.getItem("p10_web_auth") === "unlocked";
+      if (remembered) watchMyDevice();
+      else showSection("auth");
+    }
 
-  btnSaveFirebase.disabled = true;
-  btnSaveFirebase.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending';
-  try {
-    await db.ref("p10_config").set(payload);
-    showToast("Sent to the sign.");
-    renderMessageList(); restartSimulation(); markClean();
-  } catch (err) {
-    showToast("Could not send: " + err.message, true);
-  } finally {
-    btnSaveFirebase.disabled = false;
-    btnSaveFirebase.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Send to sign';
-  }
-}
-btnSaveFirebase.addEventListener("click", saveToFirebase);
+    /* ================================================================
+       ADMIN: DEVICE MANAGER (allow / deny / remove)
+       ================================================================ */
+    let devicesListener = null;
+    let attemptsListener = null;
+    let knownPendingIds = null; // null until first snapshot, so we don't toast for old requests
 
-/* ---------- UI interactions ---------- */
-speedSlider.addEventListener("input", (e) => {
-  const level = parseInt(e.target.value);
-  scrollSpeedMs = levelToMs(level);
-  speedVal.textContent = speedWord(level);
-  markDirty(); restartSimulation();
-});
-delaySlider.addEventListener("input", (e) => {
-  delayBetweenSec = parseFloat(e.target.value);
-  delayVal.textContent = delayWord(delayBetweenSec);
-  markDirty();
-});
-btnAddSentence.addEventListener("click", () => {
-  messagesState.push("");
-  renderMessageList(); markDirty();
-  const inputs = msgListContainer.querySelectorAll(".msg-input");
-  if (inputs.length) inputs[inputs.length - 1].focus();
-});
+    function startAdminListeners() {
+      stopAdminListeners();
+      knownPendingIds = null;
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
 
-function renderMessageList() {
-  msgListContainer.innerHTML = "";
-  messagesState.forEach((msg, idx) => {
-    const row = document.createElement("div");
-    row.className = "msg-item";
-    row.innerHTML = `
-      <div class="msg-num">${idx + 1}</div>
-      <input type="text" class="msg-input" value="${escapeHtml(msg)}" placeholder="Type a message" aria-label="Message ${idx + 1}" />
-      <div class="msg-actions"></div>`;
-    row.querySelector(".msg-input").addEventListener("input", (e) => { messagesState[idx] = e.target.value; markDirty(); });
-    const actions = row.querySelector(".msg-actions");
-    const addBtn = (icon, label, cls, disabled, handler) => {
-      const b = document.createElement("button");
-      b.className = "icon-btn " + cls; b.title = label; b.setAttribute("aria-label", label);
-      b.innerHTML = `<i class="fa-solid ${icon}"></i>`; b.disabled = !!disabled;
-      b.addEventListener("click", handler); actions.appendChild(b);
+      devicesListener = db.ref("devices").on("value", (snap) => {
+        const data = snap.val() || {};
+        const list = Object.keys(data).map((id) => Object.assign({ id }, data[id]));
+        renderDevices(list);
+        updateAlertModal(list);
+
+        // Notify about NEW pending requests
+        const pendingNow = list.filter((d) => d.status === "pending").map((d) => d.id);
+        if (knownPendingIds !== null) {
+          list.filter((d) => d.status === "pending" && !knownPendingIds.includes(d.id)).forEach((d) => {
+            showToast("New device wants access: " + (d.name || "Unknown"), true);
+            notifyOwner(d);
+          });
+        }
+        knownPendingIds = pendingNow;
+      });
+
+      attemptsListener = db.ref("loginAttempts").limitToLast(10).on("value", (snap) => {
+        const data = snap.val() || {};
+        const rows = Object.keys(data).map((k) => data[k]).sort((a, b) => b.time - a.time);
+        renderAttempts(rows);
+      });
+    }
+
+    function stopAdminListeners() {
+      if (devicesListener) { db.ref("devices").off("value", devicesListener); devicesListener = null; }
+      if (attemptsListener) { db.ref("loginAttempts").off("value", attemptsListener); attemptsListener = null; }
+      document.getElementById("accessAlert").classList.add("hidden");
+      closeDrawer();
+      stopTitleFlash();
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return "-";
+      return new Date(ts).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function renderDevices(list) {
+      const order = { pending: 0, approved: 1, denied: 2 };
+      list.sort((a, b) => (order[a.status] - order[b.status]) || ((b.lastSeen || 0) - (a.lastSeen || 0)));
+
+      const pendingCount = list.filter((d) => d.status === "pending").length;
+      pendingCountBadge.textContent = pendingCount + " waiting";
+      pendingCountBadge.classList.toggle("hidden", pendingCount === 0);
+      devBtnCount.textContent = pendingCount;
+      devBtnCount.classList.toggle("hidden", pendingCount === 0);
+      btnDevices.classList.toggle("has-pending", pendingCount > 0);
+
+      deviceList.innerHTML = "";
+      if (list.length === 0) {
+        deviceList.innerHTML = '<div class="empty-note">No devices yet.</div>';
+        return;
+      }
+
+      list.forEach((d) => {
+        const isMe = d.id === myDeviceId;
+        const status = d.status || "pending";
+        const row = document.createElement("div");
+        row.className = "device-item" + (status === "pending" ? " is-pending" : "");
+        row.innerHTML = `
+          <div class="device-info">
+            <div class="device-name">
+              <i class="fa-solid ${/iPhone|Android|iPad/i.test(d.userAgent || d.name || "") ? "fa-mobile-screen" : "fa-desktop"}"></i>
+              <span>${escapeHtml(d.name || "Unknown device")}</span>
+              <span class="badge ${status}">${status}</span>
+              ${isMe ? '<span class="badge me">this device</span>' : ""}
+              ${d.isAdmin ? '<span class="badge admin">owner</span>' : ""}
+            </div>
+            <div class="device-meta">
+              First seen: ${fmtTime(d.firstSeen)} &nbsp;|&nbsp; Last active: ${fmtTime(d.lastSeen)}
+            </div>
+          </div>
+          <div class="device-actions"></div>
+        `;
+
+        const actions = row.querySelector(".device-actions");
+
+        const btnAllow = document.createElement("button");
+        btnAllow.className = "btn-sm btn-allow";
+        btnAllow.innerHTML = '<i class="fa-solid fa-check"></i> Allow';
+        btnAllow.disabled = status === "approved";
+        btnAllow.addEventListener("click", () => setDeviceStatus(d.id, "approved"));
+
+        const btnDeny = document.createElement("button");
+        btnDeny.className = "btn-sm btn-deny";
+        btnDeny.innerHTML = '<i class="fa-solid fa-xmark"></i> Deny';
+        btnDeny.disabled = status === "denied" || isMe;
+        btnDeny.addEventListener("click", () => setDeviceStatus(d.id, "denied"));
+
+        const btnRemove = document.createElement("button");
+        btnRemove.className = "btn-sm btn-remove";
+        btnRemove.title = "Remove this device record";
+        btnRemove.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+        btnRemove.disabled = isMe;
+        btnRemove.addEventListener("click", () => {
+          if (confirm("Remove '" + (d.name || "this device") + "'? It will need approval again.")) {
+            db.ref("devices/" + d.id).remove();
+          }
+        });
+
+        actions.appendChild(btnAllow);
+        actions.appendChild(btnDeny);
+        actions.appendChild(btnRemove);
+        deviceList.appendChild(row);
+      });
+    }
+
+    function setDeviceStatus(id, status) {
+      db.ref("devices/" + id).update({ status: status, decidedAt: Date.now() })
+        .then(() => showToast(status === "approved" ? "Device allowed." : "Device denied."))
+        .catch((err) => showToast("Failed: " + err.message, true));
+    }
+
+    /* ---------- Owner alert popup (Allow / Deny) ---------- */
+    let alertDeviceId = null;
+    const baseTitle = document.title;
+    let titleFlashTimer = null;
+
+    function updateAlertModal(list) {
+      const pending = list
+        .filter((d) => d.status === "pending" && d.id !== myDeviceId)
+        .sort((a, b) => (a.firstSeen || 0) - (b.firstSeen || 0));
+      const overlay = document.getElementById("accessAlert");
+
+      if (pending.length === 0) {
+        alertDeviceId = null;
+        overlay.classList.add("hidden");
+        stopTitleFlash();
+        return;
+      }
+
+      const d = pending[0];
+      alertDeviceId = d.id;
+      document.getElementById("alertDeviceName").textContent = d.name || "Unknown device";
+      document.getElementById("alertDeviceTime").textContent = "Requested at " + fmtTime(d.firstSeen);
+      document.getElementById("alertQueue").textContent =
+        pending.length > 1 ? (pending.length - 1) + " more request(s) waiting" : "";
+      overlay.classList.remove("hidden");
+      startTitleFlash();
+    }
+
+    document.getElementById("alertAllow").addEventListener("click", () => {
+      if (alertDeviceId) setDeviceStatus(alertDeviceId, "approved");
+    });
+    document.getElementById("alertDeny").addEventListener("click", () => {
+      if (alertDeviceId) setDeviceStatus(alertDeviceId, "denied");
+    });
+
+    function notifyOwner(d) {
+      // sound
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [880, 660, 880].forEach((freq, i) => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.frequency.value = freq; o.connect(g); g.connect(ctx.destination);
+          g.gain.value = 0.15;
+          o.start(ctx.currentTime + i * 0.22);
+          o.stop(ctx.currentTime + i * 0.22 + 0.16);
+        });
+      } catch (e) {}
+      // vibrate on phones
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      // system notification if the tab is in the background
+      if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+        try { new Notification("P10 Display: login request", { body: (d.name || "Unknown device") + " wants access. Open the page to Allow or Deny." }); } catch (e) {}
+      }
+    }
+
+    function startTitleFlash() {
+      if (titleFlashTimer) return;
+      let on = false;
+      titleFlashTimer = setInterval(() => {
+        document.title = on ? baseTitle : "(!) Login request";
+        on = !on;
+      }, 1000);
+    }
+    function stopTitleFlash() {
+      if (titleFlashTimer) { clearInterval(titleFlashTimer); titleFlashTimer = null; }
+      document.title = baseTitle;
+    }
+
+    function renderAttempts(rows) {
+      attemptList.innerHTML = "";
+      if (rows.length === 0) {
+        attemptList.innerHTML = '<div class="empty-note">No failed attempts.</div>';
+        return;
+      }
+      rows.forEach((r) => {
+        const el = document.createElement("div");
+        el.className = "attempt-row";
+        el.innerHTML = `<span><strong>Wrong password</strong> from ${escapeHtml(r.name || "Unknown device")}</span><span>${fmtTime(r.time)}</span>`;
+        attemptList.appendChild(el);
+      });
+    }
+
+    document.getElementById("btnClearAttempts").addEventListener("click", () => {
+      db.ref("loginAttempts").remove();
+    });
+
+    /* ================================================================
+       DATA LOAD & SAVE TO FIREBASE (P10 CONFIG)
+       ================================================================ */
+    function loadConfigFromFirebase() {
+      db.ref("p10_config").once("value", (snapshot) => {
+        const val = snapshot.val();
+        if (val) {
+          if (Array.isArray(val.messages) && val.messages.length > 0) messagesState = val.messages;
+          if (val.speed) {
+            scrollSpeedMs = parseInt(val.speed);
+            speedSlider.value = scrollSpeedMs;
+            speedVal.textContent = scrollSpeedMs + " ms";
+          }
+          if (val.delayBetween !== undefined) {
+            delayBetweenSec = parseFloat(val.delayBetween) / 1000;
+            delaySlider.value = delayBetweenSec;
+            delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
+          }
+        }
+        renderMessageList();
+        restartSimulation();
+        showToast("Display data synchronized with Firebase.");
+      }, (error) => {
+        console.error("Firebase read error:", error);
+        renderMessageList();
+        restartSimulation();
+      });
+    }
+
+    async function saveToFirebase() {
+      const inputs = msgListContainer.querySelectorAll(".msg-input");
+      const updatedMessages = [];
+      inputs.forEach((inp) => {
+        const val = inp.value.trim();
+        if (val.length > 0) updatedMessages.push(val);
+      });
+
+      if (updatedMessages.length === 0) {
+        showToast("Please enter at least one sentence!", true);
+        return;
+      }
+
+      messagesState = updatedMessages;
+      scrollSpeedMs = parseInt(speedSlider.value);
+      delayBetweenSec = parseFloat(delaySlider.value);
+
+      const payload = {
+        speed: scrollSpeedMs,
+        delayBetween: Math.round(delayBetweenSec * 1000),
+        messages: messagesState,
+        lastUpdated: Date.now()
+      };
+
+      btnSaveFirebase.disabled = true;
+      btnSaveFirebase.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving to Firebase...';
+
+      try {
+        await db.ref("p10_config").set(payload);
+        showToast("Sent to ESP8266 & P10 Display successfully!");
+        restartSimulation();
+      } catch (err) {
+        showToast("Failed to save: " + err.message, true);
+      } finally {
+        btnSaveFirebase.disabled = false;
+        btnSaveFirebase.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Update & Push to LED Display';
+      }
+    }
+
+    btnSaveFirebase.addEventListener("click", saveToFirebase);
+
+    /* ================================================================
+       UI INTERACTIONS & SLIDERS
+       ================================================================ */
+    speedSlider.addEventListener("input", (e) => {
+      scrollSpeedMs = parseInt(e.target.value);
+      speedVal.textContent = scrollSpeedMs + " ms";
+      restartSimulation();
+    });
+
+    delaySlider.addEventListener("input", (e) => {
+      delayBetweenSec = parseFloat(e.target.value);
+      delayVal.textContent = delayBetweenSec.toFixed(1) + " s";
+    });
+
+    btnAddSentence.addEventListener("click", () => {
+      messagesState.push("NEW SENTENCE " + (messagesState.length + 1));
+      renderMessageList();
+    });
+
+    function renderMessageList() {
+      msgListContainer.innerHTML = "";
+      messagesState.forEach((msg, idx) => {
+        const row = document.createElement("div");
+        row.className = "msg-item";
+        row.innerHTML = `
+          <div class="msg-drag-idx">#${idx + 1}</div>
+          <input type="text" class="msg-input" value="${escapeHtml(msg)}" placeholder="Enter sentence..." />
+          <div class="msg-actions">
+            <button class="btn-icon" title="Move Up" onclick="moveSentence(${idx}, -1)" ${idx === 0 ? "disabled style='opacity:0.4;'" : ""}>
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <button class="btn-icon" title="Move Down" onclick="moveSentence(${idx}, 1)" ${idx === messagesState.length - 1 ? "disabled style='opacity:0.4;'" : ""}>
+              <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button class="btn-icon delete" title="Delete" onclick="deleteSentence(${idx})">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        `;
+
+        const inp = row.querySelector(".msg-input");
+        inp.addEventListener("input", (e) => { messagesState[idx] = e.target.value; });
+        msgListContainer.appendChild(row);
+      });
+
+      msgCountBadge.textContent = `${messagesState.length} sentence${messagesState.length === 1 ? "" : "s"}`;
+    }
+
+    window.moveSentence = function(index, direction) {
+      const target = index + direction;
+      if (target < 0 || target >= messagesState.length) return;
+      const temp = messagesState[index];
+      messagesState[index] = messagesState[target];
+      messagesState[target] = temp;
+      renderMessageList();
+      restartSimulation();
     };
-    addBtn("fa-arrow-up", "Move up", "", idx === 0, () => moveSentence(idx, -1));
-    addBtn("fa-arrow-down", "Move down", "", idx === messagesState.length - 1, () => moveSentence(idx, 1));
-    addBtn("fa-trash-can", "Delete message", "danger", false, () => deleteSentence(idx));
-    msgListContainer.appendChild(row);
-  });
-  msgCountBadge.textContent = `${messagesState.length} message${messagesState.length === 1 ? "" : "s"}`;
-}
 
-function moveSentence(index, dir) {
-  const t = index + dir;
-  if (t < 0 || t >= messagesState.length) return;
-  [messagesState[index], messagesState[t]] = [messagesState[t], messagesState[index]];
-  renderMessageList(); markDirty(); restartSimulation();
-}
-function deleteSentence(index) {
-  if (messagesState.length <= 1) { showToast("Keep at least one message.", true); return; }
-  messagesState.splice(index, 1);
-  renderMessageList(); markDirty(); restartSimulation();
-}
-function escapeHtml(t) {
-  return String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+    window.deleteSentence = function(index) {
+      if (messagesState.length <= 1) {
+        showToast("You must keep at least one sentence!", true);
+        return;
+      }
+      messagesState.splice(index, 1);
+      renderMessageList();
+      restartSimulation();
+    };
 
-/* ---------- LED preview ---------- */
-function currentPreviewText() { const t = (messagesState[simIndex] || "").trim(); return t.length ? t : " "; }
+    function escapeHtml(text) {
+      return String(text).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#039;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
 
-function restartSimulation() {
-  if (simTimer) clearInterval(simTimer);
-  if (simDelayTimeout) clearTimeout(simDelayTimeout);
-  if (messagesState.length === 0) return;
-  simIndex = 0; simState = "SCROLL";
-  simPos = ledScreen.offsetWidth;
-  ledText.textContent = currentPreviewText();
-  ledText.style.transform = `translateX(${simPos}px)`;
-  previewStatus.textContent = `Showing message 1 of ${messagesState.length}`;
-  simTimer = setInterval(stepSimulation, Math.max(15, scrollSpeedMs));
-}
+    /* ================================================================
+       ANIMATED LED MATRIX SIMULATION
+       ================================================================ */
+    function restartSimulation() {
+      if (simTimer) clearInterval(simTimer);
+      if (simDelayTimeout) clearTimeout(simDelayTimeout);
+      if (messagesState.length === 0) return;
 
-function stepSimulation() {
-  if (messagesState.length === 0 || simState !== "SCROLL") return;
-  simPos -= 2;
-  ledText.style.transform = `translateX(${simPos}px)`;
-  if (simPos < -ledText.offsetWidth) {
-    simState = "DELAY";
-    previewStatus.textContent = "Pausing before the next message";
-    simDelayTimeout = setTimeout(() => {
-      simIndex = (simIndex + 1) % messagesState.length;
-      ledText.textContent = currentPreviewText();
-      simPos = ledScreen.offsetWidth;
-      ledText.style.transform = `translateX(${simPos}px)`;
+      simIndex = 0;
       simState = "SCROLL";
-      previewStatus.textContent = `Showing message ${simIndex + 1} of ${messagesState.length}`;
-    }, delayBetweenSec * 1000);
-  }
-}
+      simPos = ledScreen.offsetWidth;
+      ledText.textContent = messagesState[simIndex];
+      ledText.style.transform = `translateX(${simPos}px)`;
 
-/* ---------- Toast ---------- */
-let toastTimer = null;
-function showToast(msg, isError = false) {
-  const toast = $("toast");
-  $("toastMsg").textContent = msg;
-  toast.classList.toggle("error", isError);
-  toast.classList.toggle("ok", !isError);
-  toast.querySelector("i").className = isError ? "fa-solid fa-triangle-exclamation" : "fa-solid fa-circle-check";
-  toast.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
-}
+      simTimer = setInterval(stepSimulation, Math.max(15, scrollSpeedMs));
+    }
 
-checkAuthOnLoad();
-</script>
+    function stepSimulation() {
+      if (messagesState.length === 0) return;
+
+      if (simState === "SCROLL") {
+        simPos -= 2;
+        ledText.style.transform = `translateX(${simPos}px)`;
+
+        const textWidth = ledText.offsetWidth;
+        if (simPos < -textWidth) {
+          simState = "DELAY";
+          previewStatus.textContent = `Sentence #${simIndex + 1} finished. Waiting ${delayBetweenSec.toFixed(1)}s delay...`;
+
+          simDelayTimeout = setTimeout(() => {
+            simIndex = (simIndex + 1) % messagesState.length;
+            ledText.textContent = messagesState[simIndex];
+            simPos = ledScreen.offsetWidth;
+            ledText.style.transform = `translateX(${simPos}px)`;
+            simState = "SCROLL";
+            previewStatus.textContent = `Scrolling Sentence #${simIndex + 1} of ${messagesState.length}`;
+          }, delayBetweenSec * 1000);
+        }
+      }
+    }
+
+    /* ================================================================
+       TOAST
+       ================================================================ */
+    let toastTimer = null;
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById("toast");
+      const toastMsg = document.getElementById("toastMsg");
+      toastMsg.textContent = msg;
+
+      const icon = toast.querySelector("i");
+      if (isError) {
+        toast.style.borderLeftColor = "var(--danger)";
+        icon.className = "fa-solid fa-triangle-exclamation";
+        icon.style.color = "var(--danger)";
+      } else {
+        toast.style.borderLeftColor = "var(--accent)";
+        icon.className = "fa-solid fa-circle-check";
+        icon.style.color = "var(--success)";
+      }
+
+      toast.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
+    }
+
+    // Start
+    checkAuthOnLoad();
+  </script>
 </body>
 </html>
