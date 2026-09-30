@@ -97,6 +97,10 @@ input[type=range]{width:100%;accent-color:var(--brand)}
 .sm.a{background:var(--ok)}.sm.d{background:var(--danger)}.sm.r{background:var(--line);color:var(--muted)}
 .sm:disabled{opacity:.3;cursor:not-allowed}
 .attempt{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.tabs{display:flex;gap:6px;margin:12px 0 4px}
+.tab{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:600;font-size:.82rem;color:var(--muted)}
+.tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;background:#3ddc84;box-shadow:0 0 6px #3ddc84;display:inline-block}
 .alert-ov{position:fixed;inset:0;background:rgba(10,15,12,.65);z-index:2000;display:grid;place-items:center;padding:16px}
 .alert-box{background:#fff;border-radius:18px;padding:26px 22px;max-width:400px;width:100%;text-align:center;border-top:6px solid var(--warn)}
 .alert-box .btns{display:flex;gap:10px;margin-top:16px}
@@ -149,6 +153,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   <header>
     <div class="brand"><i class="fa-solid fa-display"></i><span>LED Sign Controller</span></div>
     <div class="hdr-r">
+      <button class="btn-dev hidden" id="btnActive"><span class="dot"></span> Active users <span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
       <button class="btn-dev hidden" id="btnDevices"><i class="fa-solid fa-laptop-mobile"></i> Devices <span class="count hidden" id="devBtnCount">0</span></button>
       <div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
     </div>
@@ -157,6 +162,12 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   <div class="led-card">
     <div class="led-top"><span class="live">Live preview · 5 panels, 160 × 16</span><span id="previewStatus">Starting…</span></div>
     <div class="led-screen" id="ledScreen"><div class="led-text" id="ledText"></div></div>
+  </div>
+
+  <div class="card hidden" id="activeCard" style="margin-bottom:16px">
+    <div class="sec-head"><h2><span class="dot"></span> Active users (<span id="activeCount2">0</span>)</h2><button class="sm r" id="btnAll2">All devices</button></div>
+    <p class="sub">People using this page right now. Deny access to sign someone out instantly.</p>
+    <div id="activeInline"></div>
   </div>
 
   <div class="grid">
@@ -188,10 +199,12 @@ input[type=range]{width:100%;accent-color:var(--brand)}
 <div class="overlay hidden" id="deviceDrawerOverlay">
   <div class="drawer" role="dialog" aria-label="Devices">
     <div class="sec-head"><h2>Devices <span class="tag pending hidden" id="pendingCountBadge">0</span></h2><button class="ib" id="btnCloseDrawer" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
-    <p class="sub">Allow or block the phones and computers that can control the sign.</p>
+    <p class="sub">See who is using the sign page right now, and deny anyone you don't trust.</p>
+    <div class="tabs"><button class="tab on" id="tabActive">Active now</button><button class="tab" id="tabAll">All devices</button></div>
+    <div id="activeList"></div>
     <div id="deviceList"></div>
-    <div style="margin-top:22px" class="sec-head"><h2 style="font-size:.9rem">Wrong-password attempts</h2><button class="sm r" id="btnClearAttempts">Clear</button></div>
-    <div id="attemptList"></div>
+    <div id="attemptsBox"><div style="margin-top:22px" class="sec-head"><h2 style="font-size:.9rem">Wrong-password attempts</h2><button class="sm r" id="btnClearAttempts">Clear</button></div>
+    <div id="attemptList"></div></div>
   </div>
 </div>
 
@@ -222,7 +235,11 @@ let messages=["WELCOME TO OUR DIGITAL HUB","SPECIAL OFFER 50% OFF TODAY","THANK 
 let speedMs=25,delaySec=2,simIndex=0,simPos=0,simTimer=null,simState="SCROLL",simDelay=null,dirty=false;
 
 const openDrawer=()=>drawer.classList.remove("hidden"),closeDrawer=()=>drawer.classList.add("hidden");
-btnDevices.onclick=openDrawer;$("btnCloseDrawer").onclick=closeDrawer;
+let tab="active";
+function setTab(t){tab=t;$("tabActive").classList.toggle("on",t==="active");$("tabAll").classList.toggle("on",t==="all");$("activeList").classList.toggle("hidden",t!=="active");$("deviceList").classList.toggle("hidden",t!=="all");$("attemptsBox").classList.toggle("hidden",t!=="all")}
+setTab("active");
+btnDevices.onclick=()=>{setTab("all");openDrawer()};$("btnActive").onclick=()=>{setTab("active");openDrawer()};
+$("tabActive").onclick=()=>setTab("active");$("btnAll2").onclick=()=>{setTab("all");openDrawer()};$("tabAll").onclick=()=>setTab("all");$("btnCloseDrawer").onclick=closeDrawer;
 drawer.addEventListener("click",e=>{if(e.target===drawer)closeDrawer()});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});
 
@@ -249,6 +266,21 @@ const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.togg
 
 /* ---------- login flow ---------- */
 let isUnlocked=false,myIsAdmin=false,myWatcher=null;
+
+let presRef=null,presCb=null,hb=null;
+function startPresence(){
+  stopPresence();
+  presRef=db.ref(".info/connected");
+  presCb=presRef.on("value",s=>{
+    if(s.val()!==true||!isUnlocked)return;
+    myDeviceRef.child("online").onDisconnect().set(false).then(()=>{if(isUnlocked)myDeviceRef.update({online:true,lastSeen:Date.now()})}).catch(()=>{});
+  });
+  hb=setInterval(()=>{if(isUnlocked)myDeviceRef.update({lastSeen:Date.now()}).catch(()=>{})},60000);
+}
+function stopPresence(){
+  if(presRef&&presCb)presRef.off("value",presCb);
+  presRef=presCb=null;clearInterval(hb);
+}
 
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
@@ -279,7 +311,7 @@ function watchMyDevice(){
   stopWatchingMyDevice();showSection("loading");
   myWatcher=myDeviceRef.on("value",snap=>{
     const v=snap.val();
-    if(!v){clearAuthFlags();lockDashboard();stopWatchingMyDevice();showSection("auth");showToast("This device was removed. Please sign in again.",true);return}
+    if(!v){myDeviceRef.child("online").onDisconnect().cancel();clearAuthFlags();lockDashboard();stopWatchingMyDevice();showSection("auth");showToast("This device was removed. Please sign in again.",true);return}
     myIsAdmin=!!v.isAdmin;
     $("pendingDeviceName").textContent=$("deniedDeviceName").textContent=v.name||"Unknown device";
     if(v.status==="approved"){if(!isUnlocked)unlockDashboard();else btnDevices.classList.toggle("hidden",!myIsAdmin)}
@@ -289,7 +321,7 @@ function watchMyDevice(){
 }
 function stopWatchingMyDevice(){if(myWatcher){myDeviceRef.off("value",myWatcher);myWatcher=null}}
 function clearAuthFlags(){localStorage.removeItem("p10_web_auth");sessionStorage.removeItem("p10_web_auth")}
-function goBackToLogin(){clearAuthFlags();stopWatchingMyDevice();lockDashboard();showSection("auth")}
+function goBackToLogin(){myDeviceRef.child("online").set(false).catch(()=>{});clearAuthFlags();stopWatchingMyDevice();lockDashboard();showSection("auth")}
 $("btnCancelPending").onclick=goBackToLogin;$("btnCancelDenied").onclick=goBackToLogin;
 $("btnLogout").onclick=()=>{goBackToLogin();showToast("Signed out.")};
 
@@ -297,11 +329,12 @@ function unlockDashboard(){
   isUnlocked=true;showSection("dashboard");
   btnDevices.classList.toggle("hidden",!myIsAdmin);
   myDeviceRef.update({lastSeen:Date.now()}).catch(()=>{});
+  startPresence();
   if(myIsAdmin)startAdminListeners();
   loadConfig();
 }
 function lockDashboard(){
-  isUnlocked=false;clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;stopPresence();clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -327,7 +360,7 @@ function startAdminListeners(){
 function stopAdminListeners(){
   if(devL){db.ref("devices").off("value",devL);devL=null}
   if(attL){db.ref("loginAttempts").off("value",attL);attL=null}
-  $("accessAlert").classList.add("hidden");closeDrawer();stopTitleFlash();
+  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
 }
 const fmtTime=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-";
 
@@ -338,6 +371,23 @@ function renderDevices(arr){
   $("pendingCountBadge").textContent=n+" waiting";$("pendingCountBadge").classList.toggle("hidden",!n);
   $("devBtnCount").textContent=n;$("devBtnCount").classList.toggle("hidden",!n);
   btnDevices.classList.toggle("alert",n>0);
+  const act=arr.filter(d=>d.status==="approved"&&d.online===true);
+  $("btnActive").classList.remove("hidden");$("activeCount").textContent=act.length;
+  $("tabActive").textContent="Active now ("+act.length+")";
+  [$("activeList"),$("activeInline")].forEach(ab=>{ab.innerHTML="";
+  if(!act.length)ab.innerHTML='<p class="sub" style="margin-top:14px">Nobody is using the sign page right now.</p>';
+  act.forEach(d=>{
+    const me=d.id===myDeviceId,r=document.createElement("div");r.className="dev";
+    r.innerHTML=`<div><div class="dev-n"><span class="dot"></span><span>${esc(d.name||"Unknown device")}</span>${me?'<span class="tag me">you</span>':""}${d.isAdmin?'<span class="tag admin">owner</span>':""}</div><div class="dev-m">Active now · last activity ${fmtTime(d.lastSeen)}</div></div>`;
+    if(!me){
+      const b=document.createElement("button");b.className="sm d";b.innerHTML='<i class="fa-solid fa-ban"></i> Deny access';
+      b.onclick=()=>{if(confirm("Deny access to '"+(d.name||"this device")+"'? They will be signed out right away."))setStatus(d.id,"denied")};
+      r.appendChild(b);
+    }
+    ab.appendChild(r);
+  });
+  });
+  $("activeCard").classList.remove("hidden");$("activeCount2").textContent=act.length;
   const box=$("deviceList");box.innerHTML="";
   if(!arr.length){box.innerHTML='<p class="sub" style="margin-top:14px">No devices yet.</p>';return}
   arr.forEach(d=>{
