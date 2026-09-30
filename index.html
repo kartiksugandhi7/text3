@@ -185,10 +185,10 @@ input[type=range]{width:100%;accent-color:var(--brand)}
 
   <div class="card" style="margin-bottom:16px">
     <h2>Text style <span class="sub" id="styleFor" style="font-weight:400"></span></h2>
-    <p class="sub">Every message can have its own font. Click a message below, then choose its font here. The black box shows the real pixels that will be sent.</p>
+    <p class="sub">Every message can have its own font. Click a message below, then choose its font here (English fonts and Hindi / Marathi fonts are both listed). The black box shows the real pixels that will be sent.</p>
     <div class="style-row">
       <div><label for="fontSel">Font</label><select id="fontSel"></select></div>
-      <div><label for="sizeSel">Size</label><select id="sizeSel"><option>10</option><option>11</option><option selected>12</option><option>13</option><option>14</option></select></div>
+      <div><label for="sizeSel">Size</label><select id="sizeSel"><option>8</option><option>9</option><option>10</option><option>11</option><option selected>12</option><option>13</option><option>14</option><option>16</option></select></div>
       <div><label for="shiftSel">Position</label><select id="shiftSel"><option value="-3">Up 3</option><option value="-2">Up 2</option><option value="-1">Up 1</option><option value="0" selected>Centered</option><option value="1">Down 1</option><option value="2">Down 2</option><option value="3">Down 3</option></select></div>
       <div><label for="boldChk">Weight</label><label class="check" style="margin:10px 0 0"><input type="checkbox" id="boldChk" checked> Bold</label></div>
     </div>
@@ -199,7 +199,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   <div class="grid">
     <div class="card">
       <div class="sec-head"><h2>Messages</h2><span class="sub" id="msgCountBadge"></span></div>
-      <p class="sub">The sign shows these one after another, top to bottom. Hindi / Marathi (देवनागरी) works too: just type or paste it.</p>
+      <p class="sub">The sign shows these one after another, top to bottom. English and Hindi / Marathi (देवनागरी) both work: just type or paste.</p>
       <div class="list" id="msgListContainer"></div>
       <button class="btn block" id="btnAddSentence"><i class="fa-solid fa-plus"></i> Add message</button>
     </div>
@@ -503,21 +503,53 @@ async function save(){
 /* ---------- per-message text style + bitmap rendering ----------
    The browser draws each message with its own font into a 16-pixel-high bitmap,
    one 16-bit column = 4 hex chars, so the ESP only has to draw pixels. */
+/* g = group shown in the dropdown. w = weights to load ("" = font has only one weight, so Bold is ignored). */
 const FONTS=[
- {n:"Noto Sans Devanagari",w:"400;700"},{n:"Hind",w:"400;700"},{n:"Mukta",w:"400;700"},{n:"Poppins",w:"400;700"},
- {n:"Baloo 2",w:"400;700"},{n:"Khand",w:"400;700"},{n:"Rajdhani",w:"400;700"},{n:"Teko",w:"400;700"},
- {n:"Kalam",w:"400;700"},{n:"Laila",w:"400;700"},{n:"Martel",w:"400;700"},
- {n:"Tiro Devanagari Hindi",w:""},{n:"Yatra One",w:""}
+ /* English: pixel / LED style (sharpest on 16px) */
+ {n:"VT323",w:"",g:"English"},
+ {n:"Press Start 2P",w:"",g:"English"},
+ {n:"Silkscreen",w:"400;700",g:"English"},
+ {n:"Pixelify Sans",w:"400;700",g:"English"},
+ {n:"DotGothic16",w:"",g:"English"},
+ {n:"Share Tech Mono",w:"",g:"English"},
+ /* English: narrow / bold (fits more letters in 16px) */
+ {n:"Bebas Neue",w:"",g:"English"},
+ {n:"Oswald",w:"400;700",g:"English"},
+ {n:"Anton",w:"",g:"English"},
+ {n:"Roboto Condensed",w:"400;700",g:"English"},
+ {n:"Barlow Condensed",w:"400;700",g:"English"},
+ /* English: regular */
+ {n:"Roboto",w:"400;700",g:"English"},
+ {n:"Open Sans",w:"400;700",g:"English"},
+ {n:"Orbitron",w:"400;700",g:"English"},
+ /* Hindi / Marathi (Devanagari) */
+ {n:"Noto Sans Devanagari",w:"400;700",g:"Devanagari"},{n:"Hind",w:"400;700",g:"Devanagari"},
+ {n:"Mukta",w:"400;700",g:"Devanagari"},{n:"Poppins",w:"400;700",g:"Devanagari"},
+ {n:"Baloo 2",w:"400;700",g:"Devanagari"},{n:"Khand",w:"400;700",g:"Devanagari"},
+ {n:"Rajdhani",w:"400;700",g:"Devanagari"},{n:"Teko",w:"400;700",g:"Devanagari"},
+ {n:"Kalam",w:"400;700",g:"Devanagari"},{n:"Laila",w:"400;700",g:"Devanagari"},
+ {n:"Martel",w:"400;700",g:"Devanagari"},{n:"Tiro Devanagari Hindi",w:"",g:"Devanagari"},
+ {n:"Yatra One",w:"",g:"Devanagari"}
 ];
 const defStyle=()=>({f:"Noto Sans Devanagari",p:12,b:true,y:0});
 let styles=[defStyle(),defStyle(),defStyle()],previewIdx=0,pvT=null;
 const loadedFonts={};
-FONTS.forEach(f=>{const o=document.createElement("option");o.value=o.textContent=f.n;$("fontSel").appendChild(o)});
+/* dropdown, grouped */
+["English","Devanagari"].forEach(g=>{
+  const og=document.createElement("optgroup");
+  og.label=g==="English"?"English":"Hindi / Marathi (देवनागरी)";
+  FONTS.filter(f=>f.g===g).forEach(f=>{
+    const o=document.createElement("option");o.value=o.textContent=f.n;og.appendChild(o);
+  });
+  $("fontSel").appendChild(og);
+});
 function syncStyles(){
   while(styles.length<messages.length)styles.push(Object.assign({},styles[styles.length-1]||defStyle()));
   styles.length=messages.length;
 }
-const fontStr=st=>(st.b?"700 ":"400 ")+st.p+'px "'+st.f+'","Noto Sans Devanagari",sans-serif';
+/* Bold only applies if the font actually has a bold weight */
+const canBold=st=>{const f=FONTS.find(x=>x.n===st.f);return !!st.b&&(!f||!!f.w)};
+const fontStr=st=>(canBold(st)?"700 ":"400 ")+st.p+'px "'+st.f+'","Noto Sans Devanagari",sans-serif';
 function loadFont(name){
   if(loadedFonts[name])return loadedFonts[name];
   const f=FONTS.find(x=>x.n===name);if(!f)return Promise.resolve();
@@ -546,8 +578,8 @@ async function rasterize(text,st){
 }
 function applyLedFont(i){
   const st=styles[i]||defStyle();loadFont(st.f);
-  ledText.style.fontFamily='"'+st.f+'",sans-serif';
-  ledText.style.fontWeight=st.b?700:400;
+  ledText.style.fontFamily='"'+st.f+'","Noto Sans Devanagari",sans-serif';
+  ledText.style.fontWeight=canBold(st)?700:400;
   ledText.style.fontSize=Math.round(st.p*3.4)+"px";
 }
 function schedulePreview(){clearTimeout(pvT);pvT=setTimeout(paintPreview,150)}
