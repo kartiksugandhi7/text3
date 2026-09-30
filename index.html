@@ -44,6 +44,15 @@ input[readonly]{background:var(--bg);color:var(--muted)}
 .pw input{padding-right:48px}
 .pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;color:var(--muted);border-radius:8px;font-size:1rem}
 .pw button:hover{background:var(--bg);color:var(--ink)}
+.style-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-top:12px}
+@media(max-width:640px){.style-row{grid-template-columns:1fr 1fr}}
+select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:.9rem;background:#fff;color:var(--ink)}
+.style-row label{display:block;font-size:.75rem;font-weight:600;margin-bottom:4px}
+.pxwrap{background:#050605;border-radius:8px;padding:8px;overflow-x:auto;margin-top:12px}
+.pxwrap canvas{display:block}
+.ftag{font-size:.68rem;color:var(--muted);white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.row.sel{border-color:var(--brand);background:#fff;box-shadow:0 0 0 2px rgba(15,107,92,.15)}
+.row{cursor:pointer}
 .check{display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);margin:2px 0 18px;text-align:left}
 .check input{accent-color:var(--brand);width:16px;height:16px}
 /* header */
@@ -172,6 +181,19 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="sec-head"><h2><span class="dot"></span> Active users (<span id="activeCount2">0</span>)</h2><button class="sm r" id="btnAll2">All devices</button></div>
     <p class="sub">People using this page right now. Deny access to sign someone out instantly.</p>
     <div id="activeInline"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Text style <span class="sub" id="styleFor" style="font-weight:400"></span></h2>
+    <p class="sub">Every message can have its own font. Click a message below, then choose its font here. The black box shows the real pixels that will be sent.</p>
+    <div class="style-row">
+      <div><label for="fontSel">Font</label><select id="fontSel"></select></div>
+      <div><label for="sizeSel">Size</label><select id="sizeSel"><option>10</option><option>11</option><option selected>12</option><option>13</option><option>14</option></select></div>
+      <div><label for="shiftSel">Position</label><select id="shiftSel"><option value="-3">Up 3</option><option value="-2">Up 2</option><option value="-1">Up 1</option><option value="0" selected>Centered</option><option value="1">Down 1</option><option value="2">Down 2</option><option value="3">Down 3</option></select></div>
+      <div><label for="boldChk">Weight</label><label class="check" style="margin:10px 0 0"><input type="checkbox" id="boldChk" checked> Bold</label></div>
+    </div>
+    <button class="btn" id="btnApplyAll" style="margin-top:12px;padding:8px 14px;font-size:.8rem">Use this style for all messages</button>
+    <div class="pxwrap"><canvas id="pxCanvas" width="640" height="64" aria-label="Pixel preview"></canvas></div>
   </div>
 
   <div class="grid">
@@ -458,34 +480,101 @@ function loadConfig(){
       if(Array.isArray(v.messages)&&v.messages.length)messages=v.messages;
       if(v.speed){speedMs=parseInt(v.speed);speedSlider.value=speedMs;$("speedVal").textContent=speedMs+" ms"}
       if(v.delayBetween!==undefined){delaySec=parseFloat(v.delayBetween)/1000;delaySlider.value=delaySec;$("delayVal").textContent=delaySec.toFixed(1)+" s"}
+      if(Array.isArray(v.styles))styles=v.styles.map(x=>Object.assign(defStyle(),x||{}));
+      else if(v.font)styles=messages.map(()=>({f:v.font,p:+v.fontPx||12,b:v.fontBold!==false,y:+v.yOff||0}));
     }
     renderList();restartSim();setDirty(false);
+    Promise.all(styles.map(x=>loadFont(x.f))).then(()=>{restartSim();paintPreview()});
   },err=>{console.error(err);renderList();restartSim();showToast("Couldn't load the sign's settings.",true)});
 }
 async function save(){
-  const out=[...list.querySelectorAll(".row input")].map(i=>i.value.trim()).filter(Boolean);
+  const vals=[...list.querySelectorAll(".row input")].map(i=>i.value.trim());
+  const keep=vals.map((v,i)=>v?i:-1).filter(i=>i>=0),out=keep.map(i=>vals[i]);
   if(!out.length){showToast("Add at least one message first.",true);return}
-  messages=out;speedMs=parseInt(speedSlider.value);delaySec=parseFloat(delaySlider.value);
+  messages=out;styles=keep.map(i=>styles[i]||defStyle());speedMs=parseInt(speedSlider.value);delaySec=parseFloat(delaySlider.value);
   const b=$("btnSaveFirebase");b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
   try{
-    const bitmaps=await Promise.all(messages.map(rasterize));
-    await db.ref("p10_config").set({speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,lastUpdated:Date.now()});
+    const bitmaps=await Promise.all(messages.map((m,i)=>rasterize(m,styles[i])));
+    await db.ref("p10_config").set({speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,styles,lastUpdated:Date.now()});
     showToast("Sent to the sign.");renderList();restartSim();setDirty(false);
   }catch(err){showToast("Couldn't send: "+err.message,true)}
   finally{b.disabled=false;b.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> Send to sign'}
 }
-/* Turn text into a 16-pixel-high bitmap (one 16-bit column = 4 hex chars) so Devanagari
-   is shaped correctly by the browser and the ESP only has to draw pixels. */
-const FONT_PX=12,BASELINE=12,FONT='600 '+FONT_PX+'px "Noto Sans Devanagari","Sora",sans-serif';
-async function rasterize(text){
-  try{await document.fonts.load(FONT,text)}catch(e){}
+/* ---------- per-message text style + bitmap rendering ----------
+   The browser draws each message with its own font into a 16-pixel-high bitmap,
+   one 16-bit column = 4 hex chars, so the ESP only has to draw pixels. */
+const FONTS=[
+ {n:"Noto Sans Devanagari",w:"400;700"},{n:"Hind",w:"400;700"},{n:"Mukta",w:"400;700"},{n:"Poppins",w:"400;700"},
+ {n:"Baloo 2",w:"400;700"},{n:"Khand",w:"400;700"},{n:"Rajdhani",w:"400;700"},{n:"Teko",w:"400;700"},
+ {n:"Kalam",w:"400;700"},{n:"Laila",w:"400;700"},{n:"Martel",w:"400;700"},
+ {n:"Tiro Devanagari Hindi",w:""},{n:"Yatra One",w:""}
+];
+const defStyle=()=>({f:"Noto Sans Devanagari",p:12,b:true,y:0});
+let styles=[defStyle(),defStyle(),defStyle()],previewIdx=0,pvT=null;
+const loadedFonts={};
+FONTS.forEach(f=>{const o=document.createElement("option");o.value=o.textContent=f.n;$("fontSel").appendChild(o)});
+function syncStyles(){
+  while(styles.length<messages.length)styles.push(Object.assign({},styles[styles.length-1]||defStyle()));
+  styles.length=messages.length;
+}
+const fontStr=st=>(st.b?"700 ":"400 ")+st.p+'px "'+st.f+'","Noto Sans Devanagari",sans-serif';
+function loadFont(name){
+  if(loadedFonts[name])return loadedFonts[name];
+  const f=FONTS.find(x=>x.n===name);if(!f)return Promise.resolve();
+  loadedFonts[name]=new Promise(res=>{
+    const l=document.createElement("link");l.rel="stylesheet";
+    l.href="https://fonts.googleapis.com/css2?family="+name.replace(/ /g,"+")+(f.w?":wght@"+f.w:"")+"&display=swap";
+    l.onload=res;l.onerror=res;document.head.appendChild(l);
+  });
+  return loadedFonts[name];
+}
+async function rasterize(text,st){
+  st=st||defStyle();
+  await loadFont(st.f);
+  const F=fontStr(st);
+  try{await document.fonts.load(F,text||" ")}catch(e){}
   const c=document.createElement("canvas"),x=c.getContext("2d");
-  x.font=FONT;const w=Math.max(1,Math.ceil(x.measureText(text).width)+2);
-  c.width=w;c.height=16;x.font=FONT;x.fillStyle="#000";x.fillText(text,1,BASELINE);
+  x.font=F;const m=x.measureText(text);
+  const w=Math.max(1,Math.ceil(m.width)+2);
+  c.width=w;c.height=16;x.font=F;x.fillStyle="#000";
+  const fa=m.fontBoundingBoxAscent,fd=m.fontBoundingBoxDescent;
+  const base=(fa!==undefined?Math.round((16-(fa+fd))/2+fa):st.p)+st.y;
+  x.fillText(text,1,base);
   const px=x.getImageData(0,0,w,16).data;let hex="";
   for(let i=0;i<w;i++){let v=0;for(let y=0;y<16;y++)if(px[(y*w+i)*4+3]>110)v|=1<<y;hex+=v.toString(16).padStart(4,"0")}
   return{w,d:hex};
 }
+function applyLedFont(i){
+  const st=styles[i]||defStyle();loadFont(st.f);
+  ledText.style.fontFamily='"'+st.f+'",sans-serif';
+  ledText.style.fontWeight=st.b?700:400;
+  ledText.style.fontSize=Math.round(st.p*3.4)+"px";
+}
+function schedulePreview(){clearTimeout(pvT);pvT=setTimeout(paintPreview,150)}
+async function paintPreview(){
+  const t=(messages[previewIdx]||"").trim();
+  const r=await rasterize(t||" ",styles[previewIdx]),S=4,W=Math.min(r.w,400),cv=$("pxCanvas"),g=cv.getContext("2d");
+  cv.width=W*S;cv.height=16*S;g.fillStyle="#0b0c0b";g.fillRect(0,0,cv.width,cv.height);
+  for(let i=0;i<W;i++){const v=parseInt(r.d.substr(i*4,4),16);for(let y=0;y<16;y++){g.fillStyle=(v>>y)&1?"#ffa726":"#1b1d1b";g.fillRect(i*S,y*S,S-1,S-1)}}
+}
+function showStyle(){
+  const st=styles[previewIdx]||defStyle();
+  $("fontSel").value=st.f;$("sizeSel").value=st.p;$("boldChk").checked=st.b;$("shiftSel").value=st.y;
+  $("styleFor").textContent="· message "+(previewIdx+1);
+}
+function markSel(){[...list.children].forEach((r,i)=>r.classList.toggle("sel",i===previewIdx))}
+function selMsg(i){previewIdx=i;showStyle();markSel();schedulePreview()}
+function fontChanged(){
+  const st=styles[previewIdx]||(styles[previewIdx]=defStyle());
+  st.f=$("fontSel").value;st.p=+$("sizeSel").value;st.b=$("boldChk").checked;st.y=+$("shiftSel").value;
+  setDirty(true);renderList();
+  loadFont(st.f).then(()=>{paintPreview();restartSim()});
+}
+["fontSel","sizeSel","boldChk","shiftSel"].forEach(id=>$(id).onchange=fontChanged);
+$("btnApplyAll").onclick=()=>{
+  const st=styles[previewIdx]||defStyle();styles=messages.map(()=>Object.assign({},st));
+  setDirty(true);renderList();loadFont(st.f).then(()=>{paintPreview();restartSim()});
+};
 $("btnSaveFirebase").onclick=save;
 
 /* ---------- editor ---------- */
@@ -494,22 +583,26 @@ delaySlider.oninput=e=>{delaySec=parseFloat(e.target.value);$("delayVal").textCo
 $("btnAddSentence").onclick=()=>{messages.push("");renderList();setDirty(true);const i=list.querySelectorAll(".row input");i[i.length-1].focus()};
 
 function renderList(){
+  syncStyles();if(previewIdx>=messages.length)previewIdx=messages.length-1;if(previewIdx<0)previewIdx=0;
   list.innerHTML="";
   messages.forEach((m,i)=>{
-    const row=document.createElement("div");row.className="row";row.dataset.i=i;
-    row.innerHTML=`<span class="n">${i+1}</span><input type="text" value="${esc(m)}" placeholder="Type a message…" maxlength="120" aria-label="Message ${i+1}"><div class="acts"><button class="ib" data-a="up" title="Move up" ${i===0?"disabled":""}><i class="fa-solid fa-arrow-up"></i></button><button class="ib" data-a="down" title="Move down" ${i===messages.length-1?"disabled":""}><i class="fa-solid fa-arrow-down"></i></button><button class="ib del" data-a="del" title="Delete"><i class="fa-solid fa-trash-can"></i></button></div>`;
+    const row=document.createElement("div");row.className="row"+(i===previewIdx?" sel":"");row.dataset.i=i;
+    row.innerHTML=`<span class="n">${i+1}</span><input type="text" value="${esc(m)}" placeholder="Type a message…" maxlength="120" aria-label="Message ${i+1}"><span class="ftag">${esc((styles[i]||defStyle()).f)}</span><div class="acts"><button class="ib" data-a="up" title="Move up" ${i===0?"disabled":""}><i class="fa-solid fa-arrow-up"></i></button><button class="ib" data-a="down" title="Move down" ${i===messages.length-1?"disabled":""}><i class="fa-solid fa-arrow-down"></i></button><button class="ib del" data-a="del" title="Delete"><i class="fa-solid fa-trash-can"></i></button></div>`;
     const inp=row.querySelector("input");
-    inp.oninput=e=>{messages[i]=e.target.value;setDirty(true)};
+    inp.oninput=e=>{messages[i]=e.target.value;setDirty(true);schedulePreview()};
+    inp.onfocus=()=>{if(previewIdx!==i)selMsg(i)};
+    row.addEventListener("click",()=>{if(previewIdx!==i)selMsg(i)});
     inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();$("btnAddSentence").click()}};
     list.appendChild(row);
   });
   $("msgCountBadge").textContent=messages.length+(messages.length===1?" message":" messages");
+  showStyle();schedulePreview();
 }
 list.addEventListener("click",e=>{
   const b=e.target.closest("button[data-a]");if(!b)return;
   const i=+b.closest(".row").dataset.i,a=b.dataset.a;
-  if(a==="del"){if(messages.length<=1){showToast("Keep at least one message.",true);return}messages.splice(i,1)}
-  else{const t=i+(a==="up"?-1:1);if(t<0||t>=messages.length)return;[messages[i],messages[t]]=[messages[t],messages[i]]}
+  if(a==="del"){if(messages.length<=1){showToast("Keep at least one message.",true);return}messages.splice(i,1);styles.splice(i,1)}
+  else{const t=i+(a==="up"?-1:1);if(t<0||t>=messages.length)return;[messages[i],messages[t]]=[messages[t],messages[i]];[styles[i],styles[t]]=[styles[t],styles[i]];if(previewIdx===i)previewIdx=t}
   renderList();setDirty(true);restartSim();
 });
 function esc(t){return String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#039;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
@@ -520,7 +613,7 @@ function restartSim(){
   clearInterval(simTimer);clearTimeout(simDelay);
   if(!messages.length)return;
   simIndex=0;simState="SCROLL";simPos=ledScreen.offsetWidth;
-  ledText.textContent=messages[0]||" ";ledText.style.transform=`translateX(${simPos}px)`;
+  ledText.textContent=messages[0]||" ";applyLedFont(0);ledText.style.transform=`translateX(${simPos}px)`;
   previewStatus.textContent=`Showing 1 of ${messages.length}`;markPlaying();
   simTimer=setInterval(step,Math.max(15,speedMs));
 }
@@ -531,7 +624,7 @@ function step(){
     simState="DELAY";previewStatus.textContent=`Pausing ${delaySec.toFixed(1)} s`;
     simDelay=setTimeout(()=>{
       simIndex=(simIndex+1)%messages.length;
-      ledText.textContent=messages[simIndex]||" ";simPos=ledScreen.offsetWidth;
+      ledText.textContent=messages[simIndex]||" ";applyLedFont(simIndex);simPos=ledScreen.offsetWidth;
       ledText.style.transform=`translateX(${simPos}px)`;simState="SCROLL";
       previewStatus.textContent=`Showing ${simIndex+1} of ${messages.length}`;markPlaying();
     },delaySec*1000);
