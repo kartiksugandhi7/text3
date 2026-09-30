@@ -40,6 +40,10 @@ h2{font-size:1.05rem;font-weight:700}
 input[type=text],input[type=email],input[type=password]{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:.92rem;background:#fff;color:var(--ink)}
 input:focus{border-color:var(--brand)}
 input[readonly]{background:var(--bg);color:var(--muted)}
+.pw{position:relative}
+.pw input{padding-right:48px}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;color:var(--muted);border-radius:8px;font-size:1rem}
+.pw button:hover{background:var(--bg);color:var(--ink)}
 .check{display:flex;gap:8px;align-items:center;font-size:.85rem;color:var(--muted);margin:2px 0 18px;text-align:left}
 .check input{accent-color:var(--brand);width:16px;height:16px}
 /* header */
@@ -121,7 +125,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <h2>LED Sign Controller</h2>
     <p class="sub" style="margin-bottom:20px">Sign in to change what your sign says.</p>
     <form id="loginForm">
-      <div class="field"><label for="loginPassword">Password</label><input type="password" id="loginPassword" required placeholder="Enter your password" autocomplete="current-password" autofocus></div>
+      <div class="field"><label for="loginPassword">Password</label><div class="pw"><input type="password" id="loginPassword" required placeholder="Enter your password" autocomplete="current-password" autofocus><button type="button" id="btnShowPw" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
       <div class="field"><label for="deviceNameInput">Name this device</label><input type="text" id="deviceNameInput" maxlength="60" placeholder="e.g. Kartik's phone"><small>The owner sees this name when approving your login.</small></div>
       <label class="check"><input type="checkbox" id="rememberMe" checked> Keep me signed in on this device</label>
       <button type="submit" class="btn primary block" id="btnLogin"><i class="fa-solid fa-unlock-keyhole"></i> Sign in</button>
@@ -261,6 +265,15 @@ function detectDeviceName(){
 }
 const getMyDeviceName=()=>deviceNameInput.value.trim()||detectDeviceName();
 deviceNameInput.value=localStorage.getItem("p10_device_label")||detectDeviceName();
+
+$("btnShowPw").onclick=()=>{
+  const show=loginPassword.type==="password";
+  loginPassword.type=show?"text":"password";
+  const b=$("btnShowPw");
+  b.innerHTML=show?'<i class="fa-solid fa-eye-slash"></i>':'<i class="fa-solid fa-eye"></i>';
+  b.setAttribute("aria-label",show?"Hide password":"Show password");b.title=show?"Hide password":"Show password";
+  loginPassword.focus();
+};
 
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
