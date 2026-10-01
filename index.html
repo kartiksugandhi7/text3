@@ -65,6 +65,19 @@ header{display:flex;justify-content:space-between;align-items:center;gap:10px;fl
 .btn-dev{position:relative;background:#fff;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.8rem;font-weight:600;display:inline-flex;gap:8px;align-items:center}
 .btn-dev.alert{border-color:var(--warn);color:var(--warn)}
 .count{background:var(--danger);color:#fff;border-radius:999px;min-width:20px;height:20px;padding:0 6px;font-size:.72rem;display:grid;place-items:center}
+/* settings menu */
+.menu-wrap{position:relative}
+.gear{position:relative;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:1.05rem;display:grid;place-items:center}
+.gear:hover,.gear[aria-expanded=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.gear-dot{position:absolute;top:1px;right:1px;width:12px;height:12px;border-radius:50%;background:var(--danger);border:2px solid #fff}
+.menu{position:absolute;right:0;top:calc(100% + 8px);min-width:230px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 32px rgba(10,15,12,.18);padding:6px;z-index:1200}
+.mi{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 12px;border:0;background:none;border-radius:8px;font-size:.88rem;font-weight:600;color:var(--ink);text-align:left}
+.mi:hover{background:var(--bg)}
+.mi i{width:18px;text-align:center;margin-right:10px;color:var(--muted)}
+.mi .dot{margin-right:12px}
+.mi.alert{color:var(--warn)}.mi.alert i{color:var(--warn)}
+.mi.out,.mi.out i{color:var(--danger)}
+.mi:not(.hidden)~.mi.out{border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
 /* LED hero */
 .led-card{background:#0d0f0e;border-radius:18px;padding:16px;margin-bottom:16px}
 .led-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#8a958f;font-size:.75rem;margin-bottom:10px}
@@ -167,9 +180,16 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   <header>
     <div class="brand"><i class="fa-solid fa-display"></i><span>LED Sign Controller</span></div>
     <div class="hdr-r">
-      <button class="btn-dev hidden" id="btnActive"><span class="dot"></span> Active users <span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
-      <button class="btn-dev hidden" id="btnDevices"><i class="fa-solid fa-laptop-mobile"></i> Devices <span class="count hidden" id="devBtnCount">0</span></button>
-      <button class="btn-dev hidden" id="btnPasswords"><i class="fa-solid fa-key"></i> Passwords</button><span class="tag me hidden" id="coInfo"></span><div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+      <span class="tag me hidden" id="coInfo"></span>
+      <div class="menu-wrap">
+        <button class="gear" id="btnSettings" title="Settings" aria-label="Settings" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-gear"></i><span class="gear-dot hidden" id="setBadge"></span></button>
+        <div class="menu hidden" id="settingsMenu" role="menu">
+          <button class="mi hidden" id="btnActive" role="menuitem"><span><span class="dot"></span>Active users</span><span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
+          <button class="mi hidden" id="btnDevices" role="menuitem"><span><i class="fa-solid fa-laptop-mobile"></i>Devices</span><span class="count hidden" id="devBtnCount">0</span></button>
+          <button class="mi hidden" id="btnPasswords" role="menuitem"><span><i class="fa-solid fa-key"></i>Password</span></button>
+          <button class="mi out" id="btnLogout" role="menuitem"><span><i class="fa-solid fa-right-from-bracket"></i>Sign out</span></button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -290,7 +310,12 @@ setTab("active");
 btnDevices.onclick=()=>{setTab("all");openDrawer()};$("btnActive").onclick=()=>{setTab("active");openDrawer()};
 $("tabActive").onclick=()=>setTab("active");$("btnAll2").onclick=()=>{setTab("all");openDrawer()};$("tabAll").onclick=()=>setTab("all");$("btnCloseDrawer").onclick=closeDrawer;
 drawer.addEventListener("click",e=>{if(e.target===drawer)closeDrawer()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer()});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeMenu()}});
+const setBtn=$("btnSettings"),setMenu=$("settingsMenu");
+function closeMenu(){setMenu.classList.add("hidden");setBtn.setAttribute("aria-expanded","false")}
+setBtn.onclick=e=>{e.stopPropagation();const open=setMenu.classList.contains("hidden");setMenu.classList.toggle("hidden",!open);setBtn.setAttribute("aria-expanded",String(open))};
+document.addEventListener("click",e=>{if(!setMenu.contains(e.target)&&!setBtn.contains(e.target))closeMenu()});
+setMenu.addEventListener("click",e=>{if(e.target.closest("button"))closeMenu()});
 
 /* ---------- device identity ---------- */
 const newId=()=>crypto.randomUUID?crypto.randomUUID():"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -420,7 +445,7 @@ function unlockDashboard(){
   loadConfig();
 }
 function lockDashboard(){
-  isUnlocked=false;stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;closeMenu();stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -449,7 +474,7 @@ function startAdminListeners(){
 function stopAdminListeners(){
   if(devL){db.ref("devices").off("value",devL);devL=null}
   if(attL){db.ref("loginAttempts").off("value",attL);attL=null}
-  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
+  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("setBadge").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
 }
 const canManage=d=>!(d.isAdmin&&!d.isCoOwner)&&(myIsMain||!d.isAdmin); /* main owner can't be denied; only main owner can manage co-owners */
 const roleTag=d=>d.isCoOwner?'<span class="tag admin">co-owner · until '+fmtTime(d.coUntil)+'</span>':d.isAdmin?'<span class="tag admin">owner</span>':"";
@@ -461,7 +486,7 @@ function renderDevices(arr){
   const n=arr.filter(d=>d.status==="pending").length;
   $("pendingCountBadge").textContent=n+" waiting";$("pendingCountBadge").classList.toggle("hidden",!n);
   $("devBtnCount").textContent=n;$("devBtnCount").classList.toggle("hidden",!n);
-  btnDevices.classList.toggle("alert",n>0);
+  btnDevices.classList.toggle("alert",n>0);$("setBadge").classList.toggle("hidden",!n);
   const act=arr.filter(d=>d.status==="approved"&&d.online===true);
   $("btnActive").classList.remove("hidden");$("activeCount").textContent=act.length;
   $("tabActive").textContent="Active now ("+act.length+")";
