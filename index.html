@@ -169,7 +169,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="hdr-r">
       <button class="btn-dev hidden" id="btnActive"><span class="dot"></span> Active users <span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
       <button class="btn-dev hidden" id="btnDevices"><i class="fa-solid fa-laptop-mobile"></i> Devices <span class="count hidden" id="devBtnCount">0</span></button>
-      <span class="tag me hidden" id="coInfo"></span><div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+      <button class="btn-dev hidden" id="btnPasswords"><i class="fa-solid fa-key"></i> Passwords</button><span class="tag me hidden" id="coInfo"></span><div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
     </div>
   </header>
 
@@ -246,6 +246,19 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   </div>
 </div>
 
+<div class="alert-ov hidden" id="pwModal">
+  <div class="alert-box" style="border-top-color:var(--brand);text-align:left;max-height:92vh;overflow:auto">
+    <h2 style="text-align:center;margin-bottom:4px">Change password</h2>
+    <p class="sub" style="text-align:center;margin-bottom:14px">Only the main owner device can do this.</p>
+    <div class="field"><label for="pwWhich">Which password?</label><select id="pwWhich"><option value="userHash">Shared password for users</option><option value="ownerHash">Owner password</option></select></div>
+    <div class="field"><label for="pwCurrent">Your current owner password</label><input type="password" id="pwCurrent" autocomplete="current-password"></div>
+    <div class="field"><label for="pwNew">New password</label><input type="password" id="pwNew" autocomplete="new-password"><small>At least 8 characters.</small></div>
+    <div class="field"><label for="pwNew2">Confirm new password</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
+    <label class="check"><input type="checkbox" id="pwSignOut" checked> Sign out all other devices now (they must sign in with the new password)</label>
+    <div class="btns"><button style="background:var(--muted)" id="pwCancel">Cancel</button><button style="background:var(--brand)" id="pwSave">Save</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status"><i class="fa-solid fa-circle-check"></i><span id="toastMsg"></span></div>
 
 <script>
@@ -311,7 +324,7 @@ $("btnShowPw").onclick=()=>{
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
 /* ---------- login flow ---------- */
-let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null;
+let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null;
 
 let presRef=null,presCb=null,hb=null;
 function startPresence(){
@@ -331,14 +344,15 @@ function stopPresence(){
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const email=loginEmail.value.trim().toLowerCase(),pw=loginPassword.value,name=getMyDeviceName();
-  let role=null;
-  try{role=await checkLogin(email,pw)}catch(err){showToast("Sign-in needs this page to be opened over https.",true);return}
+  let role=null,cfg={};
+  try{cfg=(await db.ref("auth_config").once("value")).val()||{}}catch(err){console.warn("auth_config not readable, using built-in passwords",err)}
+  try{role=await checkLogin(email,pw,cfg)}catch(err){showToast("Sign-in needs this page to be opened over https.",true);return}
   if(!role){
     showToast("Wrong email or password. Try again.",true);loginPassword.value="";loginPassword.focus();logFailedAttempt(name+" ("+email+")");return;
   }
   btnLogin.disabled=true;btnLogin.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Checking…';
   try{
-    localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);
+    localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);localStorage.setItem("p10_ver",String(cfg.ver||0));
     await registerDevice(name,email,role);
     if($("rememberMe").checked){localStorage.setItem("p10_web_auth","unlocked");sessionStorage.removeItem("p10_web_auth")}
     else{sessionStorage.setItem("p10_web_auth","unlocked");localStorage.removeItem("p10_web_auth")}
@@ -348,11 +362,11 @@ $("loginForm").addEventListener("submit",async e=>{
 });
 
 async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("p10|"+s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
-async function checkLogin(email,pw){
+async function checkLogin(email,pw,cfg){cfg=cfg||{};
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return null;
   const h=await sha(pw);
-  if(email===AUTH.ownerEmail)return h===AUTH.ownerHash?"owner":null;
-  return h===AUTH.userHash?"user":null;
+  if(email===AUTH.ownerEmail)return h===(cfg.ownerHash||AUTH.ownerHash)?"owner":null;
+  return h===(cfg.userHash||AUTH.userHash)?"user":null;
 }
 /* roles: "main owner" = admin device that is not a co-owner. Owner login on any other device = temporary co-owner. */
 async function registerDevice(name,email,role){
@@ -402,11 +416,11 @@ function unlockDashboard(){
   myDeviceRef.update({lastSeen:Date.now()}).catch(()=>{});
   startPresence();
   if(myIsAdmin)startAdminListeners();
-  updateCoInfo();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
+  updateCoInfo();startVerWatch();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
   loadConfig();
 }
 function lockDashboard(){
-  isUnlocked=false;stopPresence();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -485,6 +499,7 @@ function revokeCo(d){
   db.ref("devices/"+d.id).update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>showToast("Co-owner rights removed.")).catch(err=>showToast("Failed: "+err.message,true));
 }
 function updateCoInfo(){
+  $("btnPasswords").classList.toggle("hidden",!myIsMain);
   const el=$("coInfo");
   if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
   else el.classList.add("hidden");
@@ -494,6 +509,37 @@ function checkCoExpiry(){
     myDeviceRef.update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>showToast("Co-owner time ended. Sign in with the owner login again to renew.",true)).catch(()=>{});
   }
 }
+/* ---------- change passwords (main owner only) ---------- */
+function startVerWatch(){
+  stopVerWatch();
+  verRef=db.ref("auth_config/ver");
+  verCb=verRef.on("value",sn=>{
+    const v=String(sn.val()||0),mine=localStorage.getItem("p10_ver");
+    if(mine===null){localStorage.setItem("p10_ver",v);return}
+    if(mine!==v&&isUnlocked){goBackToLogin();showToast("The password was changed. Please sign in again.",true)}
+  },()=>{});
+}
+function stopVerWatch(){if(verRef&&verCb)verRef.off("value",verCb);verRef=verCb=null}
+const pwModal=$("pwModal");
+$("btnPasswords").onclick=()=>{if(!myIsMain)return;["pwCurrent","pwNew","pwNew2"].forEach(i=>$(i).value="");pwModal.classList.remove("hidden");$("pwCurrent").focus()};
+$("pwCancel").onclick=()=>pwModal.classList.add("hidden");
+$("pwSave").onclick=async()=>{
+  if(!myIsMain){showToast("Only the main owner device can change passwords.",true);return}
+  const which=$("pwWhich").value,cur=$("pwCurrent").value,n1=$("pwNew").value,n2=$("pwNew2").value,out=$("pwSignOut").checked;
+  if(n1.length<8){showToast("New password must be at least 8 characters.",true);return}
+  if(n1!==n2){showToast("The two new passwords do not match.",true);return}
+  const b=$("pwSave");b.disabled=true;
+  try{
+    const cfg=(await db.ref("auth_config").once("value")).val()||{};
+    if(await sha(cur)!==(cfg.ownerHash||AUTH.ownerHash)){showToast("Your current owner password is wrong.",true);return}
+    const upd={[which]:await sha(n1),changedAt:Date.now()},oldVer=String(cfg.ver||0);
+    if(out){const nv=Number(cfg.ver||0)+1;upd.ver=nv;localStorage.setItem("p10_ver",String(nv))}
+    try{await db.ref("auth_config").update(upd)}catch(e){localStorage.setItem("p10_ver",oldVer);throw e}
+    pwModal.classList.add("hidden");
+    showToast(which==="ownerHash"?"Owner password changed.":"Users' password changed.");
+  }catch(err){showToast("Couldn't change password: "+err.message,true)}
+  finally{b.disabled=false}
+};
 function setStatus(id,status){
   const upd={status,decidedAt:Date.now()};
   if(status==="denied"){upd.isAdmin=false;upd.isCoOwner=null;upd.coUntil=null}
