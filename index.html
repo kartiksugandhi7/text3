@@ -271,9 +271,9 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <h2 style="text-align:center;margin-bottom:4px">Change password</h2>
     <p class="sub" style="text-align:center;margin-bottom:14px">Only the main owner device can do this.</p>
     <div class="field"><label for="pwWhich">Which password?</label><select id="pwWhich"><option value="userHash">Shared password for users</option><option value="ownerHash">Owner password</option></select></div>
-    <div class="field"><label for="pwCurrent">Your current owner password</label><input type="password" id="pwCurrent" autocomplete="current-password"></div>
-    <div class="field"><label for="pwNew">New password</label><input type="password" id="pwNew" autocomplete="new-password"><small>At least 8 characters.</small></div>
-    <div class="field"><label for="pwNew2">Confirm new password</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
+    <div class="field"><label for="pwCurrent">Your current owner password</label><div class="pw"><input type="password" id="pwCurrent" autocomplete="current-password"><button type="button" class="eye" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
+    <div class="field"><label for="pwNew">New password</label><div class="pw"><input type="password" id="pwNew" autocomplete="new-password"><button type="button" class="eye" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div><small>At least 8 characters.</small></div>
+    <div class="field"><label for="pwNew2">Confirm new password</label><div class="pw"><input type="password" id="pwNew2" autocomplete="new-password"><button type="button" class="eye" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
     <label class="check"><input type="checkbox" id="pwSignOut" checked> Ask everyone for the new password right now</label>
     <div class="btns"><button style="background:var(--muted)" id="pwCancel">Cancel</button><button style="background:var(--brand)" id="pwSave">Save</button></div>
   </div>
@@ -284,7 +284,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="ico" style="font-size:2rem;color:var(--brand);margin-bottom:6px"><i class="fa-solid fa-key"></i></div>
     <h2>Password changed</h2>
     <p class="sub" style="margin:6px 0 14px">The owner changed the password. Enter the new password to keep using the sign.</p>
-    <div class="field"><label for="npPass">New password</label><div class="pw"><input type="password" id="npPass" autocomplete="current-password"></div></div>
+    <div class="field"><label for="npPass">New password</label><div class="pw"><input type="password" id="npPass" autocomplete="current-password"><button type="button" class="eye" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
     <div class="btns"><button style="background:var(--muted)" id="npOut">Sign out</button><button style="background:var(--brand)" id="npOk">Continue</button></div>
   </div>
 </div>
@@ -563,7 +563,7 @@ function checkPwPrompt(){
   if(!isUnlocked||myIsMain){m.classList.add("hidden");return}
   const co=myIsAdmin,key=co?"p10_over":"p10_uver",remote=String((co?authNow.ownerVer:authNow.userVer)||0);
   if(localStorage.getItem(key)===remote||localStorage.getItem(key)===null){m.classList.add("hidden");return}
-  if(m.classList.contains("hidden")){$("npPass").value="";m.classList.remove("hidden");$("npPass").focus()}
+  if(m.classList.contains("hidden")){$("npPass").value="";resetEyes(m);m.classList.remove("hidden");$("npPass").focus()}
 }
 async function submitNewPw(){
   const co=myIsAdmin,b=$("npOk");b.disabled=true;
@@ -581,7 +581,17 @@ $("npPass").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault(
 $("npOut").onclick=()=>{$("newPwModal").classList.add("hidden");goBackToLogin()};
 function stopVerWatch(){if(verRef&&verCb)verRef.off("value",verCb);verRef=verCb=null}
 const pwModal=$("pwModal");
-$("btnPasswords").onclick=()=>{if(!myIsMain)return;["pwCurrent","pwNew","pwNew2"].forEach(i=>$(i).value="");pwModal.classList.remove("hidden");$("pwCurrent").focus()};
+/* show / hide password buttons (any button.eye inside a .pw box) */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button.eye");if(!b)return;
+  const inp=b.parentElement.querySelector("input"),show=inp.type==="password";
+  inp.type=show?"text":"password";
+  b.innerHTML=show?'<i class="fa-solid fa-eye-slash"></i>':'<i class="fa-solid fa-eye"></i>';
+  b.setAttribute("aria-label",show?"Hide password":"Show password");b.title=b.getAttribute("aria-label");
+  inp.focus();
+});
+function resetEyes(box){box.querySelectorAll(".pw").forEach(w=>{const i=w.querySelector("input"),b=w.querySelector("button.eye");if(i)i.type="password";if(b){b.innerHTML='<i class="fa-solid fa-eye"></i>';b.setAttribute("aria-label","Show password");b.title="Show password"}})}
+$("btnPasswords").onclick=()=>{if(!myIsMain)return;["pwCurrent","pwNew","pwNew2"].forEach(i=>$(i).value="");resetEyes(pwModal);pwModal.classList.remove("hidden");$("pwCurrent").focus()};
 $("pwCancel").onclick=()=>pwModal.classList.add("hidden");
 $("pwSave").onclick=async()=>{
   if(!myIsMain){showToast("Only the main owner device can change passwords.",true);return}
