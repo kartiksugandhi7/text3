@@ -274,8 +274,18 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="field"><label for="pwCurrent">Your current owner password</label><input type="password" id="pwCurrent" autocomplete="current-password"></div>
     <div class="field"><label for="pwNew">New password</label><input type="password" id="pwNew" autocomplete="new-password"><small>At least 8 characters.</small></div>
     <div class="field"><label for="pwNew2">Confirm new password</label><input type="password" id="pwNew2" autocomplete="new-password"></div>
-    <label class="check"><input type="checkbox" id="pwSignOut" checked> Sign out all other devices now (they must sign in with the new password)</label>
+    <label class="check"><input type="checkbox" id="pwSignOut" checked> Ask everyone for the new password right now</label>
     <div class="btns"><button style="background:var(--muted)" id="pwCancel">Cancel</button><button style="background:var(--brand)" id="pwSave">Save</button></div>
+  </div>
+</div>
+
+<div class="alert-ov hidden" id="newPwModal" style="z-index:2500">
+  <div class="alert-box" style="border-top-color:var(--brand)">
+    <div class="ico" style="font-size:2rem;color:var(--brand);margin-bottom:6px"><i class="fa-solid fa-key"></i></div>
+    <h2>Password changed</h2>
+    <p class="sub" style="margin:6px 0 14px">The owner changed the password. Enter the new password to keep using the sign.</p>
+    <div class="field"><label for="npPass">New password</label><div class="pw"><input type="password" id="npPass" autocomplete="current-password"></div></div>
+    <div class="btns"><button style="background:var(--muted)" id="npOut">Sign out</button><button style="background:var(--brand)" id="npOk">Continue</button></div>
   </div>
 </div>
 
@@ -349,7 +359,7 @@ $("btnShowPw").onclick=()=>{
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
 /* ---------- login flow ---------- */
-let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null;
+let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null,authNow={};
 
 let presRef=null,presCb=null,hb=null;
 function startPresence(){
@@ -377,7 +387,7 @@ $("loginForm").addEventListener("submit",async e=>{
   }
   btnLogin.disabled=true;btnLogin.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Checking…';
   try{
-    localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);localStorage.setItem("p10_ver",String(cfg.ver||0));
+    localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);localStorage.setItem("p10_uver",String(cfg.userVer||0));localStorage.setItem("p10_over",String(cfg.ownerVer||0));
     await registerDevice(name,email,role);
     if($("rememberMe").checked){localStorage.setItem("p10_web_auth","unlocked");sessionStorage.removeItem("p10_web_auth")}
     else{sessionStorage.setItem("p10_web_auth","unlocked");localStorage.removeItem("p10_web_auth")}
@@ -445,7 +455,7 @@ function unlockDashboard(){
   loadConfig();
 }
 function lockDashboard(){
-  isUnlocked=false;closeMenu();stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -525,6 +535,7 @@ function revokeCo(d){
 }
 function updateCoInfo(){
   $("btnPasswords").classList.toggle("hidden",!myIsMain);
+  checkPwPrompt();
   const el=$("coInfo");
   if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
   else el.classList.add("hidden");
@@ -537,13 +548,37 @@ function checkCoExpiry(){
 /* ---------- change passwords (main owner only) ---------- */
 function startVerWatch(){
   stopVerWatch();
-  verRef=db.ref("auth_config/ver");
+  verRef=db.ref("auth_config");
   verCb=verRef.on("value",sn=>{
-    const v=String(sn.val()||0),mine=localStorage.getItem("p10_ver");
-    if(mine===null){localStorage.setItem("p10_ver",v);return}
-    if(mine!==v&&isUnlocked){goBackToLogin();showToast("The password was changed. Please sign in again.",true)}
+    authNow=sn.val()||{};
+    if(localStorage.getItem("p10_uver")===null)localStorage.setItem("p10_uver",String(authNow.userVer||0));
+    if(localStorage.getItem("p10_over")===null)localStorage.setItem("p10_over",String(authNow.ownerVer||0));
+    checkPwPrompt();
   },()=>{});
 }
+/* When the owner changes a password and chooses "ask everyone", every other device must type the new password.
+   Normal users follow the shared password; co-owners follow the owner password. */
+function checkPwPrompt(){
+  const m=$("newPwModal");
+  if(!isUnlocked||myIsMain){m.classList.add("hidden");return}
+  const co=myIsAdmin,key=co?"p10_over":"p10_uver",remote=String((co?authNow.ownerVer:authNow.userVer)||0);
+  if(localStorage.getItem(key)===remote||localStorage.getItem(key)===null){m.classList.add("hidden");return}
+  if(m.classList.contains("hidden")){$("npPass").value="";m.classList.remove("hidden");$("npPass").focus()}
+}
+async function submitNewPw(){
+  const co=myIsAdmin,b=$("npOk");b.disabled=true;
+  try{
+    const cfg=(await db.ref("auth_config").once("value")).val()||{};
+    const hash=co?(cfg.ownerHash||AUTH.ownerHash):(cfg.userHash||AUTH.userHash);
+    if(await sha($("npPass").value)!==hash){showToast("Wrong password. Try again.",true);$("npPass").value="";$("npPass").focus();return}
+    localStorage.setItem(co?"p10_over":"p10_uver",String((co?cfg.ownerVer:cfg.userVer)||0));
+    $("newPwModal").classList.add("hidden");showToast("New password accepted.");
+  }catch(err){showToast("Couldn't check: "+err.message,true)}
+  finally{b.disabled=false}
+}
+$("npOk").onclick=submitNewPw;
+$("npPass").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();submitNewPw()}});
+$("npOut").onclick=()=>{$("newPwModal").classList.add("hidden");goBackToLogin()};
 function stopVerWatch(){if(verRef&&verCb)verRef.off("value",verCb);verRef=verCb=null}
 const pwModal=$("pwModal");
 $("btnPasswords").onclick=()=>{if(!myIsMain)return;["pwCurrent","pwNew","pwNew2"].forEach(i=>$(i).value="");pwModal.classList.remove("hidden");$("pwCurrent").focus()};
@@ -557,9 +592,10 @@ $("pwSave").onclick=async()=>{
   try{
     const cfg=(await db.ref("auth_config").once("value")).val()||{};
     if(await sha(cur)!==(cfg.ownerHash||AUTH.ownerHash)){showToast("Your current owner password is wrong.",true);return}
-    const upd={[which]:await sha(n1),changedAt:Date.now()},oldVer=String(cfg.ver||0);
-    if(out){const nv=Number(cfg.ver||0)+1;upd.ver=nv;localStorage.setItem("p10_ver",String(nv))}
-    try{await db.ref("auth_config").update(upd)}catch(e){localStorage.setItem("p10_ver",oldVer);throw e}
+    const upd={[which]:await sha(n1),changedAt:Date.now()};
+    const vk=which==="ownerHash"?"ownerVer":"userVer",lk=which==="ownerHash"?"p10_over":"p10_uver",oldV=String(cfg[vk]||0);
+    if(out){const nv=Number(cfg[vk]||0)+1;upd[vk]=nv;localStorage.setItem(lk,String(nv))}
+    try{await db.ref("auth_config").update(upd)}catch(e){localStorage.setItem(lk,oldV);throw e}
     pwModal.classList.add("hidden");
     showToast(which==="ownerHash"?"Owner password changed.":"Users' password changed.");
   }catch(err){showToast("Couldn't change password: "+err.message,true)}
