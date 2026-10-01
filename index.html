@@ -78,6 +78,12 @@ header{display:flex;justify-content:space-between;align-items:center;gap:10px;fl
 .mi.alert{color:var(--warn)}.mi.alert i{color:var(--warn)}
 .mi.out,.mi.out i{color:var(--danger)}
 .mi:not(.hidden)~.mi.out{border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
+/* history */
+.tag.sent{color:var(--brand);border-color:var(--brand)}.tag.rejected{color:var(--danger);border-color:var(--danger)}.tag.replaced{color:var(--muted);border-color:var(--muted)}
+.dev.blk{display:block}
+.msgs{margin:8px 0 8px 20px;font-size:.84rem;word-break:break-word}
+.hmsg{font-size:.84rem;margin:6px 0;word-break:break-word}
+.acts2{display:flex;gap:8px;margin-top:10px}
 /* LED hero */
 .led-card{background:#0d0f0e;border-radius:18px;padding:16px;margin-bottom:16px}
 .led-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#8a958f;font-size:.75rem;margin-bottom:10px}
@@ -186,6 +192,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
         <div class="menu hidden" id="settingsMenu" role="menu">
           <button class="mi hidden" id="btnActive" role="menuitem"><span><span class="dot"></span>Active users</span><span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
           <button class="mi hidden" id="btnDevices" role="menuitem"><span><i class="fa-solid fa-laptop-mobile"></i>Devices</span><span class="count hidden" id="devBtnCount">0</span></button>
+          <button class="mi hidden" id="btnHistory" role="menuitem"><span><i class="fa-solid fa-clock-rotate-left"></i>History</span><span class="count hidden" id="histCount">0</span></button>
           <button class="mi hidden" id="btnPasswords" role="menuitem"><span><i class="fa-solid fa-key"></i>Password</span></button>
           <button class="mi out" id="btnLogout" role="menuitem"><span><i class="fa-solid fa-right-from-bracket"></i>Sign out</span></button>
         </div>
@@ -255,6 +262,17 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   </div>
 </div>
 
+<div class="overlay hidden" id="histOverlay">
+  <div class="drawer" role="dialog" aria-label="History">
+    <div class="sec-head"><h2>History <span class="tag pending hidden" id="reqBadge">0</span></h2><button class="ib" id="btnCloseHist" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+    <p class="sub">What people sent to the sign, and when. Updates from users wait under "Waiting" until you allow them.</p>
+    <div class="tabs"><button class="tab on" id="hTabReq">Waiting</button><button class="tab" id="hTabAll">History</button></div>
+    <div id="reqList"></div>
+    <div id="histList" class="hidden"></div>
+    <div id="histFoot" class="hidden" style="margin-top:16px"><button class="sm r" id="btnClearHist">Clear history</button></div>
+  </div>
+</div>
+
 <div class="alert-ov hidden" id="accessAlert">
   <div class="alert-box">
     <div class="ico warn" style="font-size:2rem;color:var(--warn)"><i class="fa-solid fa-bell"></i></div>
@@ -320,7 +338,7 @@ setTab("active");
 btnDevices.onclick=()=>{setTab("all");openDrawer()};$("btnActive").onclick=()=>{setTab("active");openDrawer()};
 $("tabActive").onclick=()=>setTab("active");$("btnAll2").onclick=()=>{setTab("all");openDrawer()};$("tabAll").onclick=()=>setTab("all");$("btnCloseDrawer").onclick=closeDrawer;
 drawer.addEventListener("click",e=>{if(e.target===drawer)closeDrawer()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeMenu()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeMenu();$("histOverlay").classList.add("hidden")}});
 const setBtn=$("btnSettings"),setMenu=$("settingsMenu");
 function closeMenu(){setMenu.classList.add("hidden");setBtn.setAttribute("aria-expanded","false")}
 setBtn.onclick=e=>{e.stopPropagation();const open=setMenu.classList.contains("hidden");setMenu.classList.toggle("hidden",!open);setBtn.setAttribute("aria-expanded",String(open))};
@@ -359,7 +377,7 @@ $("btnShowPw").onclick=()=>{
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
 /* ---------- login flow ---------- */
-let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null,authNow={};
+let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null,authNow={},myName="",myEmail="",pendDev=0,pendReq=0,reqWatch=null;
 
 let presRef=null,presCb=null,hb=null;
 function startPresence(){
@@ -432,7 +450,7 @@ function watchMyDevice(){
     const v=snap.val();
     if(!v){myDeviceRef.child("online").onDisconnect().cancel();clearAuthFlags();lockDashboard();stopWatchingMyDevice();showSection("auth");showToast("This device was removed. Please sign in again.",true);return}
     if(v.isCoOwner&&v.coUntil&&v.coUntil<=Date.now()){myDeviceRef.update({isAdmin:false,isCoOwner:null,coUntil:null}).catch(()=>{});v.isAdmin=false;v.isCoOwner=false}
-    myIsAdmin=!!v.isAdmin;myIsMain=!!v.isAdmin&&!v.isCoOwner;myCoUntil=v.isCoOwner?(v.coUntil||0):0;
+    myIsAdmin=!!v.isAdmin;myIsMain=!!v.isAdmin&&!v.isCoOwner;myCoUntil=v.isCoOwner?(v.coUntil||0):0;myName=v.name||"";myEmail=v.email||"";
     $("pendingDeviceName").textContent=$("deniedDeviceName").textContent=v.name||"Unknown device";
     if(v.status==="approved"){if(!isUnlocked)unlockDashboard();else{btnDevices.classList.toggle("hidden",!myIsAdmin);if(myIsAdmin&&!devL)startAdminListeners();if(!myIsAdmin&&devL)stopAdminListeners();updateCoInfo()}}
     else if(v.status==="denied"){lockDashboard();showSection("denied")}
@@ -453,9 +471,10 @@ function unlockDashboard(){
   if(myIsAdmin)startAdminListeners();
   updateCoInfo();startVerWatch();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
   loadConfig();
+  {const pr=localStorage.getItem("p10_req");if(pr&&!myIsAdmin)watchMyReq(pr)}
 }
 function lockDashboard(){
-  isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopMyReq();stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -463,9 +482,9 @@ function lockDashboard(){
 })();
 
 /* ---------- admin: device manager ---------- */
-let devL=null,attL=null,knownPending=null,knownCo=null;
+let devL=null,attL=null,knownPending=null,knownCo=null,reqL=null,histQ=null,knownReq=null;
 function startAdminListeners(){
-  stopAdminListeners();knownPending=null;knownCo=null;
+  stopAdminListeners();knownPending=null;knownCo=null;knownReq=null;startReqListeners();
   if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();
   devL=db.ref("devices").on("value",snap=>{
     const data=snap.val()||{},arr=Object.keys(data).map(id=>Object.assign({id},data[id]));
@@ -484,7 +503,8 @@ function startAdminListeners(){
 function stopAdminListeners(){
   if(devL){db.ref("devices").off("value",devL);devL=null}
   if(attL){db.ref("loginAttempts").off("value",attL);attL=null}
-  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("setBadge").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
+  stopReqListeners();
+  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");pendDev=0;pendReq=0;updateBadge();$("histOverlay").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
 }
 const canManage=d=>!(d.isAdmin&&!d.isCoOwner)&&(myIsMain||!d.isAdmin); /* main owner can't be denied; only main owner can manage co-owners */
 const roleTag=d=>d.isCoOwner?'<span class="tag admin">co-owner · until '+fmtTime(d.coUntil)+'</span>':d.isAdmin?'<span class="tag admin">owner</span>':"";
@@ -496,7 +516,7 @@ function renderDevices(arr){
   const n=arr.filter(d=>d.status==="pending").length;
   $("pendingCountBadge").textContent=n+" waiting";$("pendingCountBadge").classList.toggle("hidden",!n);
   $("devBtnCount").textContent=n;$("devBtnCount").classList.toggle("hidden",!n);
-  btnDevices.classList.toggle("alert",n>0);$("setBadge").classList.toggle("hidden",!n);
+  btnDevices.classList.toggle("alert",n>0);pendDev=n;updateBadge();
   const act=arr.filter(d=>d.status==="approved"&&d.online===true);
   $("btnActive").classList.remove("hidden");$("activeCount").textContent=act.length;
   $("tabActive").textContent="Active now ("+act.length+")";
@@ -535,6 +555,9 @@ function revokeCo(d){
 }
 function updateCoInfo(){
   $("btnPasswords").classList.toggle("hidden",!myIsMain);
+  $("btnHistory").classList.toggle("hidden",!myIsAdmin);
+  $("histFoot").classList.toggle("hidden",!myIsMain||hTab!=="all");
+  const sb=$("btnSaveFirebase");if(!sb.disabled)sb.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> '+(myIsAdmin?"Send to sign":"Send for approval");
   checkPwPrompt();
   const el=$("coInfo");
   if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
@@ -611,6 +634,121 @@ $("pwSave").onclick=async()=>{
   }catch(err){showToast("Couldn't change password: "+err.message,true)}
   finally{b.disabled=false}
 };
+/* ---------- history + owner approval ---------- */
+const WAIT_HTML='<i class="fa-solid fa-hourglass-half"></i> Waiting for the owner to allow it';
+const fmtFull=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"-";
+function showNote(kind,html){const n=$("dirtyNote");n.classList.toggle("clean",kind==="ok");n.innerHTML=html}
+function updateBadge(){
+  $("setBadge").classList.toggle("hidden",!(pendDev>0||pendReq>0));
+  $("histCount").textContent=pendReq;$("histCount").classList.toggle("hidden",!pendReq);
+}
+function histMeta(status,p){
+  return{time:Date.now(),deviceId:myDeviceId,name:myName||getMyDeviceName(),email:myEmail||"",role:myIsMain?"owner":(myIsAdmin?"co-owner":"user"),status,messages:p.messages,fonts:p.styles.map(x=>x.f),speed:p.speed,delayBetween:p.delayBetween};
+}
+function logSent(p){db.ref("history").push(histMeta("sent",p)).catch(()=>{})}
+/* a normal user's update is stored as a request; nothing reaches the sign until an owner allows it */
+async function submitRequest(p){
+  const old=localStorage.getItem("p10_req");
+  if(old){
+    const ex=await db.ref("requests/"+old).once("value");
+    if(ex.exists()){await db.ref("requests/"+old).remove();await db.ref("history/"+old).update({status:"replaced"})}
+  }
+  const key=db.ref("history").push().key,meta=histMeta("pending",p),up={};
+  up["history/"+key]=meta;
+  up["requests/"+key]=Object.assign({},p,{time:meta.time,deviceId:myDeviceId,name:meta.name,email:meta.email});
+  await db.ref().update(up);
+  localStorage.setItem("p10_req",key);watchMyReq(key);
+}
+function watchMyReq(id){
+  stopMyReq();
+  const r=db.ref("history/"+id+"/status");
+  const cb=r.on("value",sn=>{
+    const st=sn.val();
+    if(st==="pending"){if(!dirty)showNote("wait",WAIT_HTML);return}
+    stopMyReq();localStorage.removeItem("p10_req");
+    if(st==="approved"){showToast("The owner allowed your update. It is on the sign now.");if(!dirty)showNote("ok",'<i class="fa-solid fa-circle-check"></i> Matches the sign')}
+    else if(st==="rejected"){showToast("The owner did not allow your update.",true);if(!dirty)showNote("bad",'<i class="fa-solid fa-circle-xmark"></i> The owner did not allow your last update')}
+  },()=>{});
+  reqWatch={r,cb};
+}
+function stopMyReq(){if(reqWatch){reqWatch.r.off("value",reqWatch.cb);reqWatch=null}}
+
+function startReqListeners(){
+  stopReqListeners();
+  reqL=db.ref("requests").on("value",sn=>{
+    const data=sn.val()||{},arr=Object.keys(data).map(id=>Object.assign({id},data[id])).sort((a,b)=>(a.time||0)-(b.time||0));
+    renderRequests(arr);
+    if(knownReq!==null)arr.filter(r=>!knownReq.includes(r.id)).forEach(r=>{showToast("Update waiting for your approval: "+(r.name||"a user"),true);notifyOwner(r,(r.name||"A user")+" sent an update. Open History to allow it.")});
+    knownReq=arr.map(r=>r.id);
+  },()=>{});
+  histQ=db.ref("history").limitToLast(100);
+  histQ.on("value",sn=>{
+    const data=sn.val()||{};
+    renderHistory(Object.keys(data).map(id=>Object.assign({id},data[id])).sort((a,b)=>(b.time||0)-(a.time||0)));
+  },()=>{});
+}
+function stopReqListeners(){
+  if(reqL){db.ref("requests").off("value",reqL);reqL=null}
+  if(histQ){histQ.off("value");histQ=null}
+}
+function renderRequests(arr){
+  pendReq=arr.length;updateBadge();
+  $("reqBadge").textContent=arr.length+" waiting";$("reqBadge").classList.toggle("hidden",!arr.length);
+  $("hTabReq").textContent="Waiting ("+arr.length+")";
+  const box=$("reqList");box.innerHTML="";
+  if(!arr.length){box.innerHTML='<p class="sub" style="margin-top:14px">Nothing is waiting for your approval.</p>';return}
+  arr.forEach(r=>{
+    const el=document.createElement("div");el.className="dev pend blk";
+    const msgs=(Array.isArray(r.messages)?r.messages:[]).map((m,i)=>"<li>"+esc(m)+' <span class="dev-m">('+esc((r.styles&&r.styles[i]&&r.styles[i].f)||"")+")</span></li>").join("");
+    el.innerHTML='<div class="dev-n"><span>'+esc(r.name||"Unknown device")+'</span><span class="tag pending">waiting</span></div><div class="dev-m">'+(r.email?esc(r.email)+" · ":"")+fmtFull(r.time)+'</div><ol class="msgs">'+msgs+'</ol><div class="dev-m">Speed '+esc(r.speed)+" ms · pause "+((+r.delayBetween||0)/1000).toFixed(1)+' s</div><div class="acts2"></div>';
+    const a=el.querySelector(".acts2");
+    const mk=(cls,txt,fn)=>{const b=document.createElement("button");b.className="sm "+cls;b.textContent=txt;b.onclick=async()=>{a.querySelectorAll("button").forEach(x=>x.disabled=true);try{await fn()}catch(err){showToast("Failed: "+err.message,true)}finally{a.querySelectorAll("button").forEach(x=>x.disabled=false)}};a.appendChild(b)};
+    mk("a","Allow and send to sign",()=>approveReq(r.id));
+    mk("d","Reject",()=>rejectReq(r.id));
+    box.appendChild(el);
+  });
+}
+async function approveReq(id){
+  const r=(await db.ref("requests/"+id).once("value")).val();
+  if(!r){showToast("This request is no longer there.",true);return}
+  await db.ref("p10_config").set({speed:r.speed,delayBetween:r.delayBetween,messages:r.messages,bitmaps:r.bitmaps,styles:r.styles,lastUpdated:Date.now()});
+  await db.ref("requests/"+id).remove();
+  await db.ref("history/"+id).update({status:"approved",decidedBy:myName||"owner",decidedAt:Date.now()});
+  showToast("Allowed and sent to the sign.");
+  if(!dirty)loadConfig();
+}
+async function rejectReq(id){
+  await db.ref("requests/"+id).remove();
+  await db.ref("history/"+id).update({status:"rejected",decidedBy:myName||"owner",decidedAt:Date.now()});
+  showToast("Update rejected.");
+}
+function renderHistory(rows){
+  const box=$("histList");box.innerHTML="";
+  if(!rows.length){box.innerHTML='<p class="sub" style="margin-top:14px">Nothing yet.</p>';return}
+  rows.forEach(h=>{
+    const el=document.createElement("div");el.className="dev blk"+(h.status==="pending"?" pend":"");
+    const msgs=(Array.isArray(h.messages)?h.messages:[]).map(m=>esc(m)).join("  |  ");
+    const st=esc(h.status||"sent");
+    const dec=h.decidedBy?'<div class="dev-m">'+(h.status==="approved"?"Allowed":"Rejected")+" by "+esc(h.decidedBy)+" · "+fmtFull(h.decidedAt)+"</div>":"";
+    el.innerHTML='<div class="dev-n"><span>'+esc(h.name||"Unknown device")+'</span><span class="tag '+st+'">'+st+'</span>'+(h.role?'<span class="tag admin">'+esc(h.role)+"</span>":"")+'</div><div class="dev-m">'+(h.email?esc(h.email)+" · ":"")+fmtFull(h.time)+'</div><div class="hmsg">'+msgs+'</div><div class="dev-m">Speed '+esc(h.speed)+" ms · pause "+((+h.delayBetween||0)/1000).toFixed(1)+" s</div>"+dec;
+    box.appendChild(el);
+  });
+}
+let hTab="req";
+function setHTab(t){hTab=t;$("hTabReq").classList.toggle("on",t==="req");$("hTabAll").classList.toggle("on",t==="all");$("reqList").classList.toggle("hidden",t!=="req");$("histList").classList.toggle("hidden",t!=="all");$("histFoot").classList.toggle("hidden",t!=="all"||!myIsMain)}
+$("hTabReq").onclick=()=>setHTab("req");$("hTabAll").onclick=()=>setHTab("all");
+$("btnHistory").onclick=()=>{setHTab(pendReq>0?"req":"all");$("histOverlay").classList.remove("hidden")};
+$("btnCloseHist").onclick=()=>$("histOverlay").classList.add("hidden");
+$("histOverlay").addEventListener("click",e=>{if(e.target===$("histOverlay"))$("histOverlay").classList.add("hidden")});
+$("btnClearHist").onclick=async()=>{
+  if(!myIsMain||!confirm("Clear the history? Updates still waiting for approval are kept."))return;
+  try{
+    const all=(await db.ref("history").once("value")).val()||{},up={};
+    Object.keys(all).forEach(k=>{if(all[k].status!=="pending")up[k]=null});
+    if(Object.keys(up).length)await db.ref("history").update(up);
+    showToast("History cleared.");
+  }catch(err){showToast("Failed: "+err.message,true)}
+};
 function setStatus(id,status){
   const upd={status,decidedAt:Date.now()};
   if(status==="denied"){upd.isAdmin=false;upd.isCoOwner=null;upd.coUntil=null}
@@ -630,10 +768,10 @@ function updateAlertModal(arr){
 }
 $("alertAllow").onclick=()=>alertId&&setStatus(alertId,"approved");
 $("alertDeny").onclick=()=>alertId&&setStatus(alertId,"denied");
-function notifyOwner(d){
+function notifyOwner(d,msg){
   try{const c=new(window.AudioContext||window.webkitAudioContext)();[880,660,880].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.connect(g);g.connect(c.destination);g.gain.value=.15;o.start(c.currentTime+i*.22);o.stop(c.currentTime+i*.22+.16)})}catch(e){}
   if(navigator.vibrate)navigator.vibrate([200,100,200]);
-  if("Notification" in window&&Notification.permission==="granted"&&document.hidden){try{new Notification("LED Sign: sign-in request",{body:(d.name||"Unknown device")+" wants access."})}catch(e){}}
+  if("Notification" in window&&Notification.permission==="granted"&&document.hidden){try{new Notification(msg?"LED Sign: update waiting":"LED Sign: sign-in request",{body:msg||((d.name||"Unknown device")+" wants access.")})}catch(e){}}
 }
 function startTitleFlash(){if(flashT)return;let on=false;flashT=setInterval(()=>{document.title=on?baseTitle:"(!) Sign-in request";on=!on},1000)}
 function stopTitleFlash(){if(flashT){clearInterval(flashT);flashT=null}document.title=baseTitle}
@@ -660,6 +798,7 @@ function loadConfig(){
       else if(v.font)styles=messages.map(()=>({f:v.font,p:+v.fontPx||12,b:v.fontBold!==false,y:+v.yOff||0}));
     }
     renderList();restartSim();setDirty(false);
+    if(localStorage.getItem("p10_req")&&!myIsAdmin)showNote("wait",WAIT_HTML);
     Promise.all(styles.map(x=>loadFont(x.f))).then(()=>{restartSim();paintPreview()});
   },err=>{console.error(err);renderList();restartSim();showToast("Couldn't load the sign's settings.",true)});
 }
@@ -671,10 +810,17 @@ async function save(){
   const b=$("btnSaveFirebase");b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
   try{
     const bitmaps=await Promise.all(messages.map((m,i)=>rasterize(m,styles[i])));
-    await db.ref("p10_config").set({speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,styles,lastUpdated:Date.now()});
-    showToast("Sent to the sign.");renderList();restartSim();setDirty(false);
+    const payload={speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,styles};
+    if(myIsAdmin){
+      await db.ref("p10_config").set(Object.assign({},payload,{lastUpdated:Date.now()}));
+      logSent(payload);
+      showToast("Sent to the sign.");renderList();restartSim();setDirty(false);
+    }else{
+      await submitRequest(payload);
+      showToast("Sent to the owner. It goes on the sign after the owner allows it.");renderList();restartSim();setDirty(false);showNote("wait",WAIT_HTML);
+    }
   }catch(err){showToast("Couldn't send: "+err.message,true)}
-  finally{b.disabled=false;b.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> Send to sign'}
+  finally{b.disabled=false;b.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> '+(myIsAdmin?"Send to sign":"Send for approval")}
 }
 /* ---------- per-message text style + bitmap rendering ----------
    The browser draws each message with its own font into a 16-pixel-high bitmap,
