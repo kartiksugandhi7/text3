@@ -134,7 +134,8 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <h2>LED Sign Controller</h2>
     <p class="sub" style="margin-bottom:20px">Sign in to change what your sign says.</p>
     <form id="loginForm">
-      <div class="field"><label for="loginPassword">Password</label><div class="pw"><input type="password" id="loginPassword" required placeholder="Enter your password" autocomplete="current-password" autofocus><button type="button" id="btnShowPw" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
+      <div class="field"><label for="loginEmail">Email</label><input type="email" id="loginEmail" required placeholder="you@example.com" autocomplete="username" autofocus></div>
+      <div class="field"><label for="loginPassword">Password</label><div class="pw"><input type="password" id="loginPassword" required placeholder="Enter your password" autocomplete="current-password"><button type="button" id="btnShowPw" aria-label="Show password" title="Show password"><i class="fa-solid fa-eye"></i></button></div></div>
       <div class="field"><label for="deviceNameInput">Name this device</label><input type="text" id="deviceNameInput" maxlength="60" placeholder="e.g. Kartik's phone"><small>The owner sees this name when approving your login.</small></div>
       <label class="check"><input type="checkbox" id="rememberMe" checked> Keep me signed in on this device</label>
       <button type="submit" class="btn primary block" id="btnLogin"><i class="fa-solid fa-unlock-keyhole"></i> Sign in</button>
@@ -168,7 +169,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="hdr-r">
       <button class="btn-dev hidden" id="btnActive"><span class="dot"></span> Active users <span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
       <button class="btn-dev hidden" id="btnDevices"><i class="fa-solid fa-laptop-mobile"></i> Devices <span class="count hidden" id="devBtnCount">0</span></button>
-      <div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
+      <span class="tag me hidden" id="coInfo"></span><div class="pill"><span>Signed in</span><button id="btnLogout" title="Sign out" aria-label="Sign out"><i class="fa-solid fa-right-from-bracket"></i></button></div>
     </div>
   </header>
 
@@ -253,8 +254,17 @@ if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const $=id=>document.getElementById(id);
 const sections={loading:$("loadingSection"),auth:$("authSection"),pending:$("pendingSection"),denied:$("deniedSection"),dashboard:$("dashboardSection")};
-const AUTH={email:"kartiksugandhi7@gmail.com",password:"weather@Rcpit"};
+/* Passwords are stored only as SHA-256 hashes ("p10|" + password).
+   To change one, run this in the browser console and paste the result:
+   crypto.subtle.digest("SHA-256",new TextEncoder().encode("p10|NEWPASSWORD")).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""))) */
+const AUTH={
+  ownerEmail:"kartiksugandhi7@gmail.com",
+  ownerHash:"3913116fca270096b84ed43a9a1a6bd473f6b7e9072e4190b8ed886752f415e4",
+  userHash:"a6bc6f2bb212786aaa036aa427a53db7881ae4005e9f1c13486ba3124ddd6281"
+};
+const CO_OWNER_HOURS=8,CO_OWNER_MS=CO_OWNER_HOURS*3600*1000; /* how long the owner login on another device stays co-owner */
 const loginPassword=$("loginPassword"),deviceNameInput=$("deviceNameInput"),btnLogin=$("btnLogin"),btnDevices=$("btnDevices"),drawer=$("deviceDrawerOverlay");
+const loginEmail=$("loginEmail");
 const speedSlider=$("speedSlider"),delaySlider=$("delaySlider"),list=$("msgListContainer"),ledScreen=$("ledScreen"),ledText=$("ledText"),previewStatus=$("previewStatus");
 
 let messages=["WELCOME TO OUR DIGITAL HUB","SPECIAL OFFER 50% OFF TODAY","THANK YOU FOR VISITING US"];
@@ -287,6 +297,7 @@ function detectDeviceName(){
 }
 const getMyDeviceName=()=>deviceNameInput.value.trim()||detectDeviceName();
 deviceNameInput.value=localStorage.getItem("p10_device_label")||detectDeviceName();
+loginEmail.value=localStorage.getItem("p10_login_email")||"";
 
 $("btnShowPw").onclick=()=>{
   const show=loginPassword.type==="password";
@@ -300,7 +311,7 @@ $("btnShowPw").onclick=()=>{
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
 /* ---------- login flow ---------- */
-let isUnlocked=false,myIsAdmin=false,myWatcher=null;
+let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null;
 
 let presRef=null,presCb=null,hb=null;
 function startPresence(){
@@ -319,14 +330,16 @@ function stopPresence(){
 
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const email=AUTH.email.toLowerCase(),pw=loginPassword.value,name=getMyDeviceName();
-  if(email!==AUTH.email.toLowerCase()||pw!==AUTH.password){
-    showToast("Wrong password. Try again.",true);loginPassword.value="";loginPassword.focus();logFailedAttempt(name);return;
+  const email=loginEmail.value.trim().toLowerCase(),pw=loginPassword.value,name=getMyDeviceName();
+  let role=null;
+  try{role=await checkLogin(email,pw)}catch(err){showToast("Sign-in needs this page to be opened over https.",true);return}
+  if(!role){
+    showToast("Wrong email or password. Try again.",true);loginPassword.value="";loginPassword.focus();logFailedAttempt(name+" ("+email+")");return;
   }
   btnLogin.disabled=true;btnLogin.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Checking…';
   try{
-    localStorage.setItem("p10_device_label",name);
-    await registerDevice(name);
+    localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);
+    await registerDevice(name,email,role);
     if($("rememberMe").checked){localStorage.setItem("p10_web_auth","unlocked");sessionStorage.removeItem("p10_web_auth")}
     else{sessionStorage.setItem("p10_web_auth","unlocked");localStorage.removeItem("p10_web_auth")}
     watchMyDevice();
@@ -334,11 +347,33 @@ $("loginForm").addEventListener("submit",async e=>{
   finally{btnLogin.disabled=false;btnLogin.innerHTML='<i class="fa-solid fa-unlock-keyhole"></i> Sign in';loginPassword.value=""}
 });
 
-async function registerDevice(name){
-  const now=Date.now(),snap=await myDeviceRef.once("value");
-  if(snap.exists()){await myDeviceRef.update({name,userAgent:navigator.userAgent,lastSeen:now});return}
-  const all=await db.ref("devices").once("value"),isFirst=!all.exists();
-  await myDeviceRef.set({name,userAgent:navigator.userAgent,platform:navigator.platform||"",firstSeen:now,lastSeen:now,status:isFirst?"approved":"pending",isAdmin:isFirst});
+async function sha(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("p10|"+s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function checkLogin(email,pw){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return null;
+  const h=await sha(pw);
+  if(email===AUTH.ownerEmail)return h===AUTH.ownerHash?"owner":null;
+  return h===AUTH.userHash?"user":null;
+}
+/* roles: "main owner" = admin device that is not a co-owner. Owner login on any other device = temporary co-owner. */
+async function registerDevice(name,email,role){
+  const now=Date.now(),snap=await myDeviceRef.once("value"),old=snap.val();
+  const all=await db.ref("devices").once("value"),data=all.val()||{};
+  const mainExists=Object.keys(data).some(id=>id!==myDeviceId&&data[id].isAdmin&&!data[id].isCoOwner);
+  const iAmMain=!!(old&&old.isAdmin&&!old.isCoOwner);
+  const base={name,email,userAgent:navigator.userAgent,lastSeen:now};
+  const extra=old?{}:{platform:navigator.platform||"",firstSeen:now};
+  if(role==="owner"){
+    if(iAmMain||!mainExists){
+      await myDeviceRef.update(Object.assign({},base,extra,{status:"approved",isAdmin:true,isCoOwner:null,coUntil:null,decidedAt:now}));
+    }else if(old&&old.status==="denied"){
+      await myDeviceRef.update(base); /* main owner denied this device: stays denied */
+    }else{
+      await myDeviceRef.update(Object.assign({},base,extra,{status:"approved",isAdmin:true,isCoOwner:true,coUntil:now+CO_OWNER_MS,decidedAt:now}));
+    }
+    return;
+  }
+  if(old){await myDeviceRef.update(base);return}
+  await myDeviceRef.set(Object.assign({},base,extra,{status:"pending",isAdmin:false}));
 }
 function logFailedAttempt(name){db.ref("loginAttempts").push({deviceId:myDeviceId,name,userAgent:navigator.userAgent,time:Date.now()}).catch(()=>{})}
 
@@ -347,9 +382,10 @@ function watchMyDevice(){
   myWatcher=myDeviceRef.on("value",snap=>{
     const v=snap.val();
     if(!v){myDeviceRef.child("online").onDisconnect().cancel();clearAuthFlags();lockDashboard();stopWatchingMyDevice();showSection("auth");showToast("This device was removed. Please sign in again.",true);return}
-    myIsAdmin=!!v.isAdmin;
+    if(v.isCoOwner&&v.coUntil&&v.coUntil<=Date.now()){myDeviceRef.update({isAdmin:false,isCoOwner:null,coUntil:null}).catch(()=>{});v.isAdmin=false;v.isCoOwner=false}
+    myIsAdmin=!!v.isAdmin;myIsMain=!!v.isAdmin&&!v.isCoOwner;myCoUntil=v.isCoOwner?(v.coUntil||0):0;
     $("pendingDeviceName").textContent=$("deniedDeviceName").textContent=v.name||"Unknown device";
-    if(v.status==="approved"){if(!isUnlocked)unlockDashboard();else btnDevices.classList.toggle("hidden",!myIsAdmin)}
+    if(v.status==="approved"){if(!isUnlocked)unlockDashboard();else{btnDevices.classList.toggle("hidden",!myIsAdmin);if(myIsAdmin&&!devL)startAdminListeners();if(!myIsAdmin&&devL)stopAdminListeners();updateCoInfo()}}
     else if(v.status==="denied"){lockDashboard();showSection("denied")}
     else{lockDashboard();showSection("pending")}
   },err=>{console.error(err);showSection("auth");showToast("Server error: "+err.message,true)});
@@ -366,10 +402,11 @@ function unlockDashboard(){
   myDeviceRef.update({lastSeen:Date.now()}).catch(()=>{});
   startPresence();
   if(myIsAdmin)startAdminListeners();
+  updateCoInfo();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
   loadConfig();
 }
 function lockDashboard(){
-  isUnlocked=false;stopPresence();clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;stopPresence();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -377,9 +414,9 @@ function lockDashboard(){
 })();
 
 /* ---------- admin: device manager ---------- */
-let devL=null,attL=null,knownPending=null;
+let devL=null,attL=null,knownPending=null,knownCo=null;
 function startAdminListeners(){
-  stopAdminListeners();knownPending=null;
+  stopAdminListeners();knownPending=null;knownCo=null;
   if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();
   devL=db.ref("devices").on("value",snap=>{
     const data=snap.val()||{},arr=Object.keys(data).map(id=>Object.assign({id},data[id]));
@@ -387,6 +424,9 @@ function startAdminListeners(){
     const now=arr.filter(d=>d.status==="pending").map(d=>d.id);
     if(knownPending!==null)arr.filter(d=>d.status==="pending"&&!knownPending.includes(d.id)).forEach(d=>{showToast("New device wants access: "+(d.name||"Unknown"),true);notifyOwner(d)});
     knownPending=now;
+    const co=arr.filter(d=>d.isCoOwner&&d.id!==myDeviceId).map(d=>d.id);
+    if(myIsMain&&knownCo!==null)arr.filter(d=>d.isCoOwner&&d.id!==myDeviceId&&!knownCo.includes(d.id)).forEach(d=>{showToast("Co-owner signed in: "+(d.name||"Unknown"),true);notifyOwner(d)});
+    knownCo=co;
   });
   attL=db.ref("loginAttempts").limitToLast(10).on("value",snap=>{
     const data=snap.val()||{};renderAttempts(Object.keys(data).map(k=>data[k]).sort((a,b)=>b.time-a.time));
@@ -397,6 +437,8 @@ function stopAdminListeners(){
   if(attL){db.ref("loginAttempts").off("value",attL);attL=null}
   $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
 }
+const canManage=d=>!(d.isAdmin&&!d.isCoOwner)&&(myIsMain||!d.isAdmin); /* main owner can't be denied; only main owner can manage co-owners */
+const roleTag=d=>d.isCoOwner?'<span class="tag admin">co-owner · until '+fmtTime(d.coUntil)+'</span>':d.isAdmin?'<span class="tag admin">owner</span>':"";
 const fmtTime=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-";
 
 function renderDevices(arr){
@@ -413,8 +455,8 @@ function renderDevices(arr){
   if(!act.length)ab.innerHTML='<p class="sub" style="margin-top:14px">Nobody is using the sign page right now.</p>';
   act.forEach(d=>{
     const me=d.id===myDeviceId,r=document.createElement("div");r.className="dev";
-    r.innerHTML=`<div><div class="dev-n"><span class="dot"></span><span>${esc(d.name||"Unknown device")}</span>${me?'<span class="tag me">you</span>':""}${d.isAdmin?'<span class="tag admin">owner</span>':""}</div><div class="dev-m">Active now · last activity ${fmtTime(d.lastSeen)}</div></div>`;
-    if(!me){
+    r.innerHTML=`<div><div class="dev-n"><span class="dot"></span><span>${esc(d.name||"Unknown device")}</span>${me?'<span class="tag me">you</span>':""}${roleTag(d)}</div><div class="dev-m">${d.email?esc(d.email)+" · ":""}Active now · last activity ${fmtTime(d.lastSeen)}</div></div>`;
+    if(!me&&canManage(d)){
       const b=document.createElement("button");b.className="sm d";b.innerHTML='<i class="fa-solid fa-ban"></i> Deny access';
       b.onclick=()=>{if(confirm("Deny access to '"+(d.name||"this device")+"'? They will be signed out right away."))setStatus(d.id,"denied")};
       r.appendChild(b);
@@ -428,17 +470,34 @@ function renderDevices(arr){
   arr.forEach(d=>{
     const me=d.id===myDeviceId,st=d.status||"pending",row=document.createElement("div");
     row.className="dev"+(st==="pending"?" pend":"");
-    row.innerHTML=`<div><div class="dev-n"><span>${esc(d.name||"Unknown device")}</span><span class="tag ${st}">${st}</span>${me?'<span class="tag me">this device</span>':""}${d.isAdmin?'<span class="tag admin">owner</span>':""}</div><div class="dev-m">First seen ${fmtTime(d.firstSeen)} · Last active ${fmtTime(d.lastSeen)}</div></div><div class="acts" style="display:flex;gap:6px"></div>`;
+    row.innerHTML=`<div><div class="dev-n"><span>${esc(d.name||"Unknown device")}</span><span class="tag ${st}">${st}</span>${me?'<span class="tag me">this device</span>':""}${roleTag(d)}</div><div class="dev-m">${d.email?esc(d.email)+" · ":""}First seen ${fmtTime(d.firstSeen)} · Last active ${fmtTime(d.lastSeen)}</div></div><div class="acts" style="display:flex;gap:6px"></div>`;
     const a=row.querySelector(".acts");
     const mk=(cls,html,dis,fn,title)=>{const b=document.createElement("button");b.className="sm "+cls;b.innerHTML=html;b.disabled=dis;if(title)b.title=title;b.onclick=fn;a.appendChild(b)};
-    mk("a","Allow",st==="approved",()=>setStatus(d.id,"approved"));
-    mk("d","Deny",st==="denied"||me,()=>setStatus(d.id,"denied"));
-    mk("r",'<i class="fa-solid fa-trash-can"></i>',me,()=>{if(confirm("Remove '"+(d.name||"this device")+"'? It will need approval again."))db.ref("devices/"+d.id).remove()},"Remove device");
+    if(d.isCoOwner&&myIsMain)mk("d","Remove co-owner",false,()=>revokeCo(d));
+    mk("a","Allow",st==="approved"||!canManage(d),()=>setStatus(d.id,"approved"));
+    mk("d","Deny",st==="denied"||me||!canManage(d),()=>setStatus(d.id,"denied"));
+    mk("r",'<i class="fa-solid fa-trash-can"></i>',me||!canManage(d),()=>{if(confirm("Remove '"+(d.name||"this device")+"'? It will need approval again."))db.ref("devices/"+d.id).remove()},"Remove device");
     box.appendChild(row);
   });
 }
+function revokeCo(d){
+  if(!myIsMain||!confirm("Remove co-owner rights from '"+(d.name||"this device")+"'? It stays signed in as a normal user."))return;
+  db.ref("devices/"+d.id).update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>showToast("Co-owner rights removed.")).catch(err=>showToast("Failed: "+err.message,true));
+}
+function updateCoInfo(){
+  const el=$("coInfo");
+  if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
+  else el.classList.add("hidden");
+}
+function checkCoExpiry(){
+  if(myCoUntil&&Date.now()>=myCoUntil){
+    myDeviceRef.update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>showToast("Co-owner time ended. Sign in with the owner login again to renew.",true)).catch(()=>{});
+  }
+}
 function setStatus(id,status){
-  db.ref("devices/"+id).update({status,decidedAt:Date.now()})
+  const upd={status,decidedAt:Date.now()};
+  if(status==="denied"){upd.isAdmin=false;upd.isCoOwner=null;upd.coUntil=null}
+  db.ref("devices/"+id).update(upd)
     .then(()=>showToast(status==="approved"?"Device allowed.":"Device denied."))
     .catch(err=>showToast("Failed: "+err.message,true));
 }
