@@ -6,10 +6,11 @@
 <title>LED Sign Controller</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Sora:wght@400;600;700&family=Noto+Sans+Devanagari:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Sora:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 :root{--bg:#eceee9;--card:#fff;--ink:#17211d;--muted:#66726c;--line:#d9ddd6;--brand:#0f6b5c;--brand-d:#0b5246;--led:#ffa726;--danger:#c0392b;--ok:#1e8e5a;--warn:#b7791f;--r:14px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -37,7 +38,7 @@ h2{font-size:1.05rem;font-weight:700}
 .field{text-align:left;margin-bottom:14px}
 .field label{display:block;font-size:.8rem;font-weight:600;margin-bottom:5px}
 .field small{color:var(--muted);font-size:.75rem}
-input[type=text],input[type=email],input[type=password]{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:.92rem;background:#fff;color:var(--ink)}
+input[type=text],input[type=email],input[type=password],input[type=date]{width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:.92rem;background:#fff;color:var(--ink)}
 input:focus{border-color:var(--brand)}
 input[readonly]{background:var(--bg);color:var(--muted)}
 .pw{position:relative}
@@ -78,12 +79,6 @@ header{display:flex;justify-content:space-between;align-items:center;gap:10px;fl
 .mi.alert{color:var(--warn)}.mi.alert i{color:var(--warn)}
 .mi.out,.mi.out i{color:var(--danger)}
 .mi:not(.hidden)~.mi.out{border-top:1px solid var(--line);border-radius:0 0 8px 8px;margin-top:4px}
-/* history */
-.tag.sent{color:var(--brand);border-color:var(--brand)}.tag.rejected{color:var(--danger);border-color:var(--danger)}.tag.replaced{color:var(--muted);border-color:var(--muted)}
-.dev.blk{display:block}
-.msgs{margin:8px 0 8px 20px;font-size:.84rem;word-break:break-word}
-.hmsg{font-size:.84rem;margin:6px 0;word-break:break-word}
-.acts2{display:flex;gap:8px;margin-top:10px}
 /* LED hero */
 .led-card{background:#0d0f0e;border-radius:18px;padding:16px;margin-bottom:16px}
 .led-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#8a958f;font-size:.75rem;margin-bottom:10px}
@@ -133,6 +128,19 @@ input[type=range]{width:100%;accent-color:var(--brand)}
 .tab{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:600;font-size:.82rem;color:var(--muted)}
 .tab.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .dot{width:9px;height:9px;border-radius:50%;background:#3ddc84;box-shadow:0 0 6px #3ddc84;display:inline-block}
+/* history download */
+.histbox{margin-top:22px;border:1px solid var(--line);border-radius:12px;padding:14px;background:#fafbf9}
+.hrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 8px}
+.hrow label{display:block;font-size:.75rem;font-weight:600;margin-bottom:4px}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.quick button{padding:6px 11px;font-size:.76rem;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600}
+.quick button:hover{background:var(--bg)}
+.about-list{text-align:left;margin-top:16px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.about-item{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line)}
+.about-item:last-child{border-bottom:0}
+.about-item>i{width:34px;height:34px;border-radius:10px;background:var(--bg);color:var(--brand);display:grid;place-items:center;flex:none;font-size:.95rem}
+.about-item small{display:block;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.about-item b{display:block;font-size:.95rem;line-height:1.35}
 .alert-ov{position:fixed;inset:0;background:rgba(10,15,12,.65);z-index:2000;display:grid;place-items:center;padding:16px}
 .alert-box{background:#fff;border-radius:18px;padding:26px 22px;max-width:400px;width:100%;text-align:center;border-top:6px solid var(--warn)}
 .alert-box .btns{display:flex;gap:10px;margin-top:16px}
@@ -191,9 +199,9 @@ input[type=range]{width:100%;accent-color:var(--brand)}
         <button class="gear" id="btnSettings" title="Settings" aria-label="Settings" aria-haspopup="true" aria-expanded="false"><i class="fa-solid fa-gear"></i><span class="gear-dot hidden" id="setBadge"></span></button>
         <div class="menu hidden" id="settingsMenu" role="menu">
           <button class="mi hidden" id="btnActive" role="menuitem"><span><span class="dot"></span>Active users</span><span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
-          <button class="mi hidden" id="btnDevices" role="menuitem"><span><i class="fa-solid fa-laptop-mobile"></i>Devices</span><span class="count hidden" id="devBtnCount">0</span></button>
-          <button class="mi hidden" id="btnHistory" role="menuitem"><span><i class="fa-solid fa-clock-rotate-left"></i>History</span><span class="count hidden" id="histCount">0</span></button>
+          <button class="mi hidden" id="btnDevices" role="menuitem"><span><i class="fa-solid fa-laptop-mobile"></i>Devices &amp; history</span><span class="count hidden" id="devBtnCount">0</span></button>
           <button class="mi hidden" id="btnPasswords" role="menuitem"><span><i class="fa-solid fa-key"></i>Password</span></button>
+          <button class="mi" id="btnAbout" role="menuitem"><span><i class="fa-solid fa-circle-info"></i>About app</span></button>
           <button class="mi out" id="btnLogout" role="menuitem"><span><i class="fa-solid fa-right-from-bracket"></i>Sign out</span></button>
         </div>
       </div>
@@ -257,19 +265,20 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="tabs"><button class="tab on" id="tabActive">Active now</button><button class="tab" id="tabAll">All devices</button></div>
     <div id="activeList"></div>
     <div id="deviceList"></div>
-    <div id="attemptsBox"><div style="margin-top:22px" class="sec-head"><h2 style="font-size:.9rem">Wrong-password attempts</h2><button class="sm r" id="btnClearAttempts">Clear</button></div>
-    <div id="attemptList"></div></div>
-  </div>
-</div>
 
-<div class="overlay hidden" id="histOverlay">
-  <div class="drawer" role="dialog" aria-label="History">
-    <div class="sec-head"><h2>History <span class="tag pending hidden" id="reqBadge">0</span></h2><button class="ib" id="btnCloseHist" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
-    <p class="sub">What people sent to the sign, and when. Updates from users wait under "Waiting" until you allow them.</p>
-    <div class="tabs"><button class="tab on" id="hTabReq">Waiting</button><button class="tab" id="hTabAll">History</button></div>
-    <div id="reqList"></div>
-    <div id="histList" class="hidden"></div>
-    <div id="histFoot" class="hidden" style="margin-top:16px"><button class="sm r" id="btnClearHist">Clear history</button></div>
+    <div id="histBox" class="histbox">
+      <h2 style="font-size:.95rem"><i class="fa-solid fa-file-pdf" style="color:var(--danger);margin-right:6px"></i>Download history (PDF)</h2>
+      <p class="sub">Choose the dates you want, for example 12 to 17. The PDF lists every day with each sign-in, approval, wrong password and message update, plus full device details.</p>
+      <div class="hrow">
+        <div><label for="histFrom">From date</label><input type="date" id="histFrom"></div>
+        <div><label for="histTo">To date</label><input type="date" id="histTo"></div>
+      </div>
+      <div class="quick"><button type="button" data-days="0">Today</button><button type="button" data-days="6">Last 7 days</button><button type="button" data-days="29">Last 30 days</button></div>
+      <button class="btn primary block" id="btnHistPdf"><i class="fa-solid fa-download"></i> Download PDF</button>
+    </div>
+
+    <div id="attemptsBox"><div style="margin-top:22px" class="sec-head"><h2 style="font-size:.9rem">Wrong-password attempts</h2></div>
+    <div id="attemptList"></div></div>
   </div>
 </div>
 
@@ -281,6 +290,20 @@ input[type=range]{width:100%;accent-color:var(--brand)}
     <div class="chip" id="alertDeviceName">Device</div>
     <p class="sub" id="alertDeviceTime"></p><p class="sub" id="alertQueue"></p>
     <div class="btns"><button style="background:var(--danger)" id="alertDeny">Deny</button><button style="background:var(--ok)" id="alertAllow">Allow</button></div>
+  </div>
+</div>
+
+<div class="alert-ov hidden" id="aboutModal">
+  <div class="alert-box" style="border-top-color:var(--brand);max-height:92vh;overflow:auto" role="dialog" aria-label="About app">
+    <div class="ico" style="font-size:2rem;color:var(--brand);margin-bottom:6px"><i class="fa-solid fa-display"></i></div>
+    <h2>LED Sign Controller</h2>
+    <p class="sub">About this app</p>
+    <div class="about-list">
+      <div class="about-item"><i class="fa-solid fa-building-columns"></i><div><small>Sponsored by</small><b>R. C. Patel Institute of Technology</b></div></div>
+      <div class="about-item"><i class="fa-solid fa-code"></i><div><small>Developed by</small><b>Kartik Sugandhi</b></div></div>
+      <div class="about-item"><i class="fa-solid fa-microchip"></i><div><small>Department</small><b>Electronics and Telecommunication</b></div></div>
+    </div>
+    <div class="btns"><button style="background:var(--brand)" id="aboutClose">Close</button></div>
   </div>
 </div>
 
@@ -333,17 +356,22 @@ let speedMs=25,delaySec=2,simIndex=0,simPos=0,simTimer=null,simState="SCROLL",si
 
 const openDrawer=()=>drawer.classList.remove("hidden"),closeDrawer=()=>drawer.classList.add("hidden");
 let tab="active";
-function setTab(t){tab=t;$("tabActive").classList.toggle("on",t==="active");$("tabAll").classList.toggle("on",t==="all");$("activeList").classList.toggle("hidden",t!=="active");$("deviceList").classList.toggle("hidden",t!=="all");$("attemptsBox").classList.toggle("hidden",t!=="all")}
+function setTab(t){tab=t;$("tabActive").classList.toggle("on",t==="active");$("tabAll").classList.toggle("on",t==="all");$("activeList").classList.toggle("hidden",t!=="active");$("deviceList").classList.toggle("hidden",t!=="all");$("histBox").classList.toggle("hidden",t!=="all");$("attemptsBox").classList.toggle("hidden",t!=="all")}
 setTab("active");
 btnDevices.onclick=()=>{setTab("all");openDrawer()};$("btnActive").onclick=()=>{setTab("active");openDrawer()};
 $("tabActive").onclick=()=>setTab("active");$("btnAll2").onclick=()=>{setTab("all");openDrawer()};$("tabAll").onclick=()=>setTab("all");$("btnCloseDrawer").onclick=closeDrawer;
 drawer.addEventListener("click",e=>{if(e.target===drawer)closeDrawer()});
-document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeMenu();$("histOverlay").classList.add("hidden")}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeDrawer();closeMenu()}});
 const setBtn=$("btnSettings"),setMenu=$("settingsMenu");
 function closeMenu(){setMenu.classList.add("hidden");setBtn.setAttribute("aria-expanded","false")}
 setBtn.onclick=e=>{e.stopPropagation();const open=setMenu.classList.contains("hidden");setMenu.classList.toggle("hidden",!open);setBtn.setAttribute("aria-expanded",String(open))};
 document.addEventListener("click",e=>{if(!setMenu.contains(e.target)&&!setBtn.contains(e.target))closeMenu()});
 setMenu.addEventListener("click",e=>{if(e.target.closest("button"))closeMenu()});
+const aboutModal=$("aboutModal");
+$("btnAbout").onclick=()=>aboutModal.classList.remove("hidden");
+$("aboutClose").onclick=()=>aboutModal.classList.add("hidden");
+aboutModal.addEventListener("click",e=>{if(e.target===aboutModal)aboutModal.classList.add("hidden")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")aboutModal.classList.add("hidden")});
 
 /* ---------- device identity ---------- */
 const newId=()=>crypto.randomUUID?crypto.randomUUID():"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
@@ -376,8 +404,17 @@ $("btnShowPw").onclick=()=>{
 
 const showSection=n=>Object.keys(sections).forEach(k=>sections[k].classList.toggle("hidden",k!==n));
 
+/* ---------- activity log (history is only ever added to, never deleted from this page) ---------- */
+function logEvent(type,detail){
+  db.ref("activityLog").push({
+    t:Date.now(),type:String(type),deviceId:myDeviceId,
+    name:getMyDeviceName(),email:localStorage.getItem("p10_login_email")||"",
+    detail:String(detail||"")
+  }).catch(()=>{});
+}
+
 /* ---------- login flow ---------- */
-let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null,authNow={},myName="",myEmail="",pendDev=0,pendReq=0,reqWatch=null;
+let isUnlocked=false,myIsAdmin=false,myIsMain=false,myCoUntil=0,coT=null,myWatcher=null,verRef=null,verCb=null,authNow={};
 
 let presRef=null,presCb=null,hb=null;
 function startPresence(){
@@ -407,6 +444,7 @@ $("loginForm").addEventListener("submit",async e=>{
   try{
     localStorage.setItem("p10_device_label",name);localStorage.setItem("p10_login_email",email);localStorage.setItem("p10_uver",String(cfg.userVer||0));localStorage.setItem("p10_over",String(cfg.ownerVer||0));
     await registerDevice(name,email,role);
+    logEvent("signin","Signed in with the "+(role==="owner"?"owner":"shared user")+" login");
     if($("rememberMe").checked){localStorage.setItem("p10_web_auth","unlocked");sessionStorage.removeItem("p10_web_auth")}
     else{sessionStorage.setItem("p10_web_auth","unlocked");localStorage.removeItem("p10_web_auth")}
     watchMyDevice();
@@ -450,7 +488,7 @@ function watchMyDevice(){
     const v=snap.val();
     if(!v){myDeviceRef.child("online").onDisconnect().cancel();clearAuthFlags();lockDashboard();stopWatchingMyDevice();showSection("auth");showToast("This device was removed. Please sign in again.",true);return}
     if(v.isCoOwner&&v.coUntil&&v.coUntil<=Date.now()){myDeviceRef.update({isAdmin:false,isCoOwner:null,coUntil:null}).catch(()=>{});v.isAdmin=false;v.isCoOwner=false}
-    myIsAdmin=!!v.isAdmin;myIsMain=!!v.isAdmin&&!v.isCoOwner;myCoUntil=v.isCoOwner?(v.coUntil||0):0;myName=v.name||"";myEmail=v.email||"";
+    myIsAdmin=!!v.isAdmin;myIsMain=!!v.isAdmin&&!v.isCoOwner;myCoUntil=v.isCoOwner?(v.coUntil||0):0;
     $("pendingDeviceName").textContent=$("deniedDeviceName").textContent=v.name||"Unknown device";
     if(v.status==="approved"){if(!isUnlocked)unlockDashboard();else{btnDevices.classList.toggle("hidden",!myIsAdmin);if(myIsAdmin&&!devL)startAdminListeners();if(!myIsAdmin&&devL)stopAdminListeners();updateCoInfo()}}
     else if(v.status==="denied"){lockDashboard();showSection("denied")}
@@ -461,7 +499,7 @@ function stopWatchingMyDevice(){if(myWatcher){myDeviceRef.off("value",myWatcher)
 function clearAuthFlags(){localStorage.removeItem("p10_web_auth");sessionStorage.removeItem("p10_web_auth")}
 function goBackToLogin(){myDeviceRef.child("online").set(false).catch(()=>{});clearAuthFlags();stopWatchingMyDevice();lockDashboard();showSection("auth")}
 $("btnCancelPending").onclick=goBackToLogin;$("btnCancelDenied").onclick=goBackToLogin;
-$("btnLogout").onclick=()=>{goBackToLogin();showToast("Signed out.")};
+$("btnLogout").onclick=()=>{logEvent("signout","Signed out");goBackToLogin();showToast("Signed out.")};
 
 function unlockDashboard(){
   isUnlocked=true;showSection("dashboard");
@@ -471,10 +509,9 @@ function unlockDashboard(){
   if(myIsAdmin)startAdminListeners();
   updateCoInfo();startVerWatch();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
   loadConfig();
-  {const pr=localStorage.getItem("p10_req");if(pr&&!myIsAdmin)watchMyReq(pr)}
 }
 function lockDashboard(){
-  isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopMyReq();stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
+  isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
 }
 (function(){
   const ok=localStorage.getItem("p10_web_auth")==="unlocked"||sessionStorage.getItem("p10_web_auth")==="unlocked";
@@ -482,9 +519,9 @@ function lockDashboard(){
 })();
 
 /* ---------- admin: device manager ---------- */
-let devL=null,attL=null,knownPending=null,knownCo=null,reqL=null,histQ=null,knownReq=null;
+let devL=null,attL=null,knownPending=null,knownCo=null,devCache={};
 function startAdminListeners(){
-  stopAdminListeners();knownPending=null;knownCo=null;knownReq=null;startReqListeners();
+  stopAdminListeners();knownPending=null;knownCo=null;
   if("Notification" in window&&Notification.permission==="default")Notification.requestPermission();
   devL=db.ref("devices").on("value",snap=>{
     const data=snap.val()||{},arr=Object.keys(data).map(id=>Object.assign({id},data[id]));
@@ -503,20 +540,20 @@ function startAdminListeners(){
 function stopAdminListeners(){
   if(devL){db.ref("devices").off("value",devL);devL=null}
   if(attL){db.ref("loginAttempts").off("value",attL);attL=null}
-  stopReqListeners();
-  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");pendDev=0;pendReq=0;updateBadge();$("histOverlay").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
+  $("accessAlert").classList.add("hidden");$("btnActive").classList.add("hidden");$("setBadge").classList.add("hidden");$("activeCard").classList.add("hidden");closeDrawer();stopTitleFlash();
 }
 const canManage=d=>!(d.isAdmin&&!d.isCoOwner)&&(myIsMain||!d.isAdmin); /* main owner can't be denied; only main owner can manage co-owners */
 const roleTag=d=>d.isCoOwner?'<span class="tag admin">co-owner · until '+fmtTime(d.coUntil)+'</span>':d.isAdmin?'<span class="tag admin">owner</span>':"";
 const fmtTime=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-";
 
 function renderDevices(arr){
+  devCache={};arr.forEach(d=>{devCache[d.id]=d});
   const order={pending:0,approved:1,denied:2};
   arr.sort((a,b)=>(order[a.status]-order[b.status])||((b.lastSeen||0)-(a.lastSeen||0)));
   const n=arr.filter(d=>d.status==="pending").length;
   $("pendingCountBadge").textContent=n+" waiting";$("pendingCountBadge").classList.toggle("hidden",!n);
   $("devBtnCount").textContent=n;$("devBtnCount").classList.toggle("hidden",!n);
-  btnDevices.classList.toggle("alert",n>0);pendDev=n;updateBadge();
+  btnDevices.classList.toggle("alert",n>0);$("setBadge").classList.toggle("hidden",!n);
   const act=arr.filter(d=>d.status==="approved"&&d.online===true);
   $("btnActive").classList.remove("hidden");$("activeCount").textContent=act.length;
   $("tabActive").textContent="Active now ("+act.length+")";
@@ -545,19 +582,15 @@ function renderDevices(arr){
     if(d.isCoOwner&&myIsMain)mk("d","Remove co-owner",false,()=>revokeCo(d));
     mk("a","Allow",st==="approved"||!canManage(d),()=>setStatus(d.id,"approved"));
     mk("d","Deny",st==="denied"||me||!canManage(d),()=>setStatus(d.id,"denied"));
-    mk("r",'<i class="fa-solid fa-trash-can"></i>',me||!canManage(d),()=>{if(confirm("Remove '"+(d.name||"this device")+"'? It will need approval again."))db.ref("devices/"+d.id).remove()},"Remove device");
     box.appendChild(row);
   });
 }
 function revokeCo(d){
   if(!myIsMain||!confirm("Remove co-owner rights from '"+(d.name||"this device")+"'? It stays signed in as a normal user."))return;
-  db.ref("devices/"+d.id).update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>showToast("Co-owner rights removed.")).catch(err=>showToast("Failed: "+err.message,true));
+  db.ref("devices/"+d.id).update({isAdmin:false,isCoOwner:null,coUntil:null}).then(()=>{showToast("Co-owner rights removed.");logEvent("coowner_removed","Co-owner rights removed from "+(d.name||"Unknown device")+(d.email?" ("+d.email+")":""))}).catch(err=>showToast("Failed: "+err.message,true));
 }
 function updateCoInfo(){
   $("btnPasswords").classList.toggle("hidden",!myIsMain);
-  $("btnHistory").classList.toggle("hidden",!myIsAdmin);
-  $("histFoot").classList.toggle("hidden",!myIsMain||hTab!=="all");
-  const sb=$("btnSaveFirebase");if(!sb.disabled)sb.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> '+(myIsAdmin?"Send to sign":"Send for approval");
   checkPwPrompt();
   const el=$("coInfo");
   if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
@@ -630,130 +663,17 @@ $("pwSave").onclick=async()=>{
     if(out){const nv=Number(cfg[vk]||0)+1;upd[vk]=nv;localStorage.setItem(lk,String(nv))}
     try{await db.ref("auth_config").update(upd)}catch(e){localStorage.setItem(lk,oldV);throw e}
     pwModal.classList.add("hidden");
+    logEvent("pw_change",(which==="ownerHash"?"Owner password":"Shared users' password")+" changed"+(out?" (everyone asked for the new password)":""));
     showToast(which==="ownerHash"?"Owner password changed.":"Users' password changed.");
   }catch(err){showToast("Couldn't change password: "+err.message,true)}
   finally{b.disabled=false}
 };
-/* ---------- history + owner approval ---------- */
-const WAIT_HTML='<i class="fa-solid fa-hourglass-half"></i> Waiting for the owner to allow it';
-const fmtFull=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"-";
-function showNote(kind,html){const n=$("dirtyNote");n.classList.toggle("clean",kind==="ok");n.innerHTML=html}
-function updateBadge(){
-  $("setBadge").classList.toggle("hidden",!(pendDev>0||pendReq>0));
-  $("histCount").textContent=pendReq;$("histCount").classList.toggle("hidden",!pendReq);
-}
-function histMeta(status,p){
-  return{time:Date.now(),deviceId:myDeviceId,name:myName||getMyDeviceName(),email:myEmail||"",role:myIsMain?"owner":(myIsAdmin?"co-owner":"user"),status,messages:p.messages,fonts:p.styles.map(x=>x.f),speed:p.speed,delayBetween:p.delayBetween};
-}
-function logSent(p){db.ref("history").push(histMeta("sent",p)).catch(()=>{})}
-/* a normal user's update is stored as a request; nothing reaches the sign until an owner allows it */
-async function submitRequest(p){
-  const old=localStorage.getItem("p10_req");
-  if(old){
-    const ex=await db.ref("requests/"+old).once("value");
-    if(ex.exists()){await db.ref("requests/"+old).remove();await db.ref("history/"+old).update({status:"replaced"})}
-  }
-  const key=db.ref("history").push().key,meta=histMeta("pending",p),up={};
-  up["history/"+key]=meta;
-  up["requests/"+key]=Object.assign({},p,{time:meta.time,deviceId:myDeviceId,name:meta.name,email:meta.email});
-  await db.ref().update(up);
-  localStorage.setItem("p10_req",key);watchMyReq(key);
-}
-function watchMyReq(id){
-  stopMyReq();
-  const r=db.ref("history/"+id+"/status");
-  const cb=r.on("value",sn=>{
-    const st=sn.val();
-    if(st==="pending"){if(!dirty)showNote("wait",WAIT_HTML);return}
-    stopMyReq();localStorage.removeItem("p10_req");
-    if(st==="approved"){showToast("The owner allowed your update. It is on the sign now.");if(!dirty)showNote("ok",'<i class="fa-solid fa-circle-check"></i> Matches the sign')}
-    else if(st==="rejected"){showToast("The owner did not allow your update.",true);if(!dirty)showNote("bad",'<i class="fa-solid fa-circle-xmark"></i> The owner did not allow your last update')}
-  },()=>{});
-  reqWatch={r,cb};
-}
-function stopMyReq(){if(reqWatch){reqWatch.r.off("value",reqWatch.cb);reqWatch=null}}
-
-function startReqListeners(){
-  stopReqListeners();
-  reqL=db.ref("requests").on("value",sn=>{
-    const data=sn.val()||{},arr=Object.keys(data).map(id=>Object.assign({id},data[id])).sort((a,b)=>(a.time||0)-(b.time||0));
-    renderRequests(arr);
-    if(knownReq!==null)arr.filter(r=>!knownReq.includes(r.id)).forEach(r=>{showToast("Update waiting for your approval: "+(r.name||"a user"),true);notifyOwner(r,(r.name||"A user")+" sent an update. Open History to allow it.")});
-    knownReq=arr.map(r=>r.id);
-  },()=>{});
-  histQ=db.ref("history").limitToLast(100);
-  histQ.on("value",sn=>{
-    const data=sn.val()||{};
-    renderHistory(Object.keys(data).map(id=>Object.assign({id},data[id])).sort((a,b)=>(b.time||0)-(a.time||0)));
-  },()=>{});
-}
-function stopReqListeners(){
-  if(reqL){db.ref("requests").off("value",reqL);reqL=null}
-  if(histQ){histQ.off("value");histQ=null}
-}
-function renderRequests(arr){
-  pendReq=arr.length;updateBadge();
-  $("reqBadge").textContent=arr.length+" waiting";$("reqBadge").classList.toggle("hidden",!arr.length);
-  $("hTabReq").textContent="Waiting ("+arr.length+")";
-  const box=$("reqList");box.innerHTML="";
-  if(!arr.length){box.innerHTML='<p class="sub" style="margin-top:14px">Nothing is waiting for your approval.</p>';return}
-  arr.forEach(r=>{
-    const el=document.createElement("div");el.className="dev pend blk";
-    const msgs=(Array.isArray(r.messages)?r.messages:[]).map((m,i)=>"<li>"+esc(m)+' <span class="dev-m">('+esc((r.styles&&r.styles[i]&&r.styles[i].f)||"")+")</span></li>").join("");
-    el.innerHTML='<div class="dev-n"><span>'+esc(r.name||"Unknown device")+'</span><span class="tag pending">waiting</span></div><div class="dev-m">'+(r.email?esc(r.email)+" · ":"")+fmtFull(r.time)+'</div><ol class="msgs">'+msgs+'</ol><div class="dev-m">Speed '+esc(r.speed)+" ms · pause "+((+r.delayBetween||0)/1000).toFixed(1)+' s</div><div class="acts2"></div>';
-    const a=el.querySelector(".acts2");
-    const mk=(cls,txt,fn)=>{const b=document.createElement("button");b.className="sm "+cls;b.textContent=txt;b.onclick=async()=>{a.querySelectorAll("button").forEach(x=>x.disabled=true);try{await fn()}catch(err){showToast("Failed: "+err.message,true)}finally{a.querySelectorAll("button").forEach(x=>x.disabled=false)}};a.appendChild(b)};
-    mk("a","Allow and send to sign",()=>approveReq(r.id));
-    mk("d","Reject",()=>rejectReq(r.id));
-    box.appendChild(el);
-  });
-}
-async function approveReq(id){
-  const r=(await db.ref("requests/"+id).once("value")).val();
-  if(!r){showToast("This request is no longer there.",true);return}
-  await db.ref("p10_config").set({speed:r.speed,delayBetween:r.delayBetween,messages:r.messages,bitmaps:r.bitmaps,styles:r.styles,lastUpdated:Date.now()});
-  await db.ref("requests/"+id).remove();
-  await db.ref("history/"+id).update({status:"approved",decidedBy:myName||"owner",decidedAt:Date.now()});
-  showToast("Allowed and sent to the sign.");
-  if(!dirty)loadConfig();
-}
-async function rejectReq(id){
-  await db.ref("requests/"+id).remove();
-  await db.ref("history/"+id).update({status:"rejected",decidedBy:myName||"owner",decidedAt:Date.now()});
-  showToast("Update rejected.");
-}
-function renderHistory(rows){
-  const box=$("histList");box.innerHTML="";
-  if(!rows.length){box.innerHTML='<p class="sub" style="margin-top:14px">Nothing yet.</p>';return}
-  rows.forEach(h=>{
-    const el=document.createElement("div");el.className="dev blk"+(h.status==="pending"?" pend":"");
-    const msgs=(Array.isArray(h.messages)?h.messages:[]).map(m=>esc(m)).join("  |  ");
-    const st=esc(h.status||"sent");
-    const dec=h.decidedBy?'<div class="dev-m">'+(h.status==="approved"?"Allowed":"Rejected")+" by "+esc(h.decidedBy)+" · "+fmtFull(h.decidedAt)+"</div>":"";
-    el.innerHTML='<div class="dev-n"><span>'+esc(h.name||"Unknown device")+'</span><span class="tag '+st+'">'+st+'</span>'+(h.role?'<span class="tag admin">'+esc(h.role)+"</span>":"")+'</div><div class="dev-m">'+(h.email?esc(h.email)+" · ":"")+fmtFull(h.time)+'</div><div class="hmsg">'+msgs+'</div><div class="dev-m">Speed '+esc(h.speed)+" ms · pause "+((+h.delayBetween||0)/1000).toFixed(1)+" s</div>"+dec;
-    box.appendChild(el);
-  });
-}
-let hTab="req";
-function setHTab(t){hTab=t;$("hTabReq").classList.toggle("on",t==="req");$("hTabAll").classList.toggle("on",t==="all");$("reqList").classList.toggle("hidden",t!=="req");$("histList").classList.toggle("hidden",t!=="all");$("histFoot").classList.toggle("hidden",t!=="all"||!myIsMain)}
-$("hTabReq").onclick=()=>setHTab("req");$("hTabAll").onclick=()=>setHTab("all");
-$("btnHistory").onclick=()=>{setHTab(pendReq>0?"req":"all");$("histOverlay").classList.remove("hidden")};
-$("btnCloseHist").onclick=()=>$("histOverlay").classList.add("hidden");
-$("histOverlay").addEventListener("click",e=>{if(e.target===$("histOverlay"))$("histOverlay").classList.add("hidden")});
-$("btnClearHist").onclick=async()=>{
-  if(!myIsMain||!confirm("Clear the history? Updates still waiting for approval are kept."))return;
-  try{
-    const all=(await db.ref("history").once("value")).val()||{},up={};
-    Object.keys(all).forEach(k=>{if(all[k].status!=="pending")up[k]=null});
-    if(Object.keys(up).length)await db.ref("history").update(up);
-    showToast("History cleared.");
-  }catch(err){showToast("Failed: "+err.message,true)}
-};
 function setStatus(id,status){
   const upd={status,decidedAt:Date.now()};
   if(status==="denied"){upd.isAdmin=false;upd.isCoOwner=null;upd.coUntil=null}
+  const d=devCache[id]||{};
   db.ref("devices/"+id).update(upd)
-    .then(()=>showToast(status==="approved"?"Device allowed.":"Device denied."))
+    .then(()=>{showToast(status==="approved"?"Device allowed.":"Device denied.");logEvent(status==="approved"?"allow":"deny",(status==="approved"?"Allowed ":"Denied ")+(d.name||"Unknown device")+(d.email?" ("+d.email+")":""))})
     .catch(err=>showToast("Failed: "+err.message,true));
 }
 let alertId=null;const baseTitle=document.title;let flashT=null;
@@ -768,10 +688,10 @@ function updateAlertModal(arr){
 }
 $("alertAllow").onclick=()=>alertId&&setStatus(alertId,"approved");
 $("alertDeny").onclick=()=>alertId&&setStatus(alertId,"denied");
-function notifyOwner(d,msg){
+function notifyOwner(d){
   try{const c=new(window.AudioContext||window.webkitAudioContext)();[880,660,880].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.frequency.value=f;o.connect(g);g.connect(c.destination);g.gain.value=.15;o.start(c.currentTime+i*.22);o.stop(c.currentTime+i*.22+.16)})}catch(e){}
   if(navigator.vibrate)navigator.vibrate([200,100,200]);
-  if("Notification" in window&&Notification.permission==="granted"&&document.hidden){try{new Notification(msg?"LED Sign: update waiting":"LED Sign: sign-in request",{body:msg||((d.name||"Unknown device")+" wants access.")})}catch(e){}}
+  if("Notification" in window&&Notification.permission==="granted"&&document.hidden){try{new Notification("LED Sign: sign-in request",{body:(d.name||"Unknown device")+" wants access."})}catch(e){}}
 }
 function startTitleFlash(){if(flashT)return;let on=false;flashT=setInterval(()=>{document.title=on?baseTitle:"(!) Sign-in request";on=!on},1000)}
 function stopTitleFlash(){if(flashT){clearInterval(flashT);flashT=null}document.title=baseTitle}
@@ -780,7 +700,104 @@ function renderAttempts(rows){
   if(!rows.length){box.innerHTML='<p class="sub">None.</p>';return}
   rows.forEach(r=>{const el=document.createElement("div");el.className="attempt";el.innerHTML=`<span>${esc(r.name||"Unknown device")}</span><span>${fmtTime(r.time)}</span>`;box.appendChild(el)});
 }
-$("btnClearAttempts").onclick=()=>db.ref("loginAttempts").remove();
+
+/* ---------- history PDF (date range) ---------- */
+const pad2=n=>String(n).padStart(2,"0");
+const dayKey=ts=>{const d=new Date(ts);return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())};
+const fmtFull=ts=>ts?new Date(ts).toLocaleString([],{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}):"-";
+const fmtClock=ts=>new Date(ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const fmtDay=ts=>new Date(ts).toLocaleDateString([],{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+function setHistRange(daysBack){
+  const t=new Date(),f=new Date();f.setDate(f.getDate()-daysBack);
+  $("histTo").value=dayKey(t.getTime());$("histFrom").value=dayKey(f.getTime());
+}
+$("histFrom").max=$("histTo").max=dayKey(Date.now());
+setHistRange(6);
+document.querySelectorAll(".quick button").forEach(b=>b.onclick=()=>setHistRange(+b.dataset.days));
+
+const EV={
+  signin:["Signed in","#1e8e5a"],signout:["Signed out","#66726c"],allow:["Access allowed","#1e8e5a"],deny:["Access denied","#c0392b"],
+  coowner_removed:["Co-owner removed","#b7791f"],pw_change:["Password changed","#b7791f"],sent:["Messages sent to sign","#0f6b5c"],
+  wrong:["Wrong password attempt","#c0392b"],first:["Device first seen","#17211d"],decision:["Access decision","#17211d"]
+};
+async function downloadHistory(){
+  const f=$("histFrom").value,t=$("histTo").value;
+  if(!f||!t){showToast("Pick both the From and To dates.",true);return}
+  const from=new Date(f+"T00:00:00").getTime(),to=new Date(t+"T23:59:59.999").getTime();
+  if(from>to){showToast("The From date must be before the To date.",true);return}
+  const btn=$("btnHistPdf");btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Preparing PDF…';
+  let wrap=null;
+  try{
+    const [dS,aS,lS]=await Promise.all([
+      db.ref("devices").once("value"),
+      db.ref("loginAttempts").once("value"),
+      db.ref("activityLog").once("value").catch(()=>null)
+    ]);
+    const devs=dS.val()||{},att=aS.val()||{},log=(lS&&lS.val())||{};
+    const inR=ts=>ts&&ts>=from&&ts<=to;
+    const events=[];
+    Object.keys(log).forEach(k=>{const e=log[k];if(inR(e.t))events.push({t:e.t,type:e.type,name:e.name||"",email:e.email||"",detail:e.detail||"",deviceId:e.deviceId})});
+    Object.keys(att).forEach(k=>{const a=att[k];if(inR(a.time))events.push({t:a.time,type:"wrong",name:a.name||"Unknown device",email:"",detail:"Wrong email or password. "+(a.userAgent?"Browser: "+a.userAgent:""),deviceId:a.deviceId})});
+    /* older history that was recorded before the log existed: rebuild from device records */
+    Object.keys(devs).forEach(id=>{
+      const d=devs[id];
+      if(inR(d.firstSeen)&&!events.some(e=>e.deviceId===id&&e.type==="signin"&&Math.abs(e.t-d.firstSeen)<30000))
+        events.push({t:d.firstSeen,type:"first",name:d.name||"Unknown device",email:d.email||"",detail:"Device registered and requested access",deviceId:id});
+      if(inR(d.decidedAt)&&!events.some(e=>(e.type==="allow"||e.type==="deny"||e.type==="signin")&&Math.abs(e.t-d.decidedAt)<30000&&(e.deviceId===id||(e.detail||"").indexOf(d.name||"\u0000")>-1)))
+        events.push({t:d.decidedAt,type:"decision",name:d.name||"Unknown device",email:d.email||"",detail:"Status set to "+(d.status||"-"),deviceId:id});
+    });
+    events.sort((a,b)=>a.t-b.t);
+    const devRows=Object.keys(devs).map(id=>Object.assign({id},devs[id])).filter(d=>inR(d.firstSeen)||inR(d.lastSeen)||inR(d.decidedAt)||events.some(e=>e.deviceId===id)).sort((a,b)=>(b.lastSeen||0)-(a.lastSeen||0));
+    const cnt=ty=>events.filter(e=>e.type===ty).length;
+    const days={};events.forEach(e=>{(days[dayKey(e.t)]=days[dayKey(e.t)]||[]).push(e)});
+    const dayKeys=Object.keys(days).sort();
+    const th='style="text-align:left;background:#17211d;color:#fff;padding:5px 6px;font-size:10px"',td='style="padding:5px 6px;border-bottom:1px solid #e3e6e0;font-size:10px;vertical-align:top;word-break:break-word"';
+    const stat=(n,l)=>`<div style="flex:1;min-width:110px;border:1px solid #d9ddd6;border-radius:8px;padding:8px 10px"><div style="font-size:20px;font-weight:700">${n}</div><div style="font-size:10px;color:#66726c">${l}</div></div>`;
+    let h=`<div style="font-family:'Sora','Noto Sans Devanagari',Arial,sans-serif;color:#17211d;width:740px;padding:4px">
+      <div style="border-bottom:3px solid #0f6b5c;padding-bottom:8px;margin-bottom:12px">
+        <div style="font-size:20px;font-weight:700">LED Sign Controller: History Report</div>
+        <div style="font-size:12px;margin-top:3px">Period: <b>${esc(new Date(from).toLocaleDateString([],{day:"2-digit",month:"long",year:"numeric"}))}</b> to <b>${esc(new Date(to).toLocaleDateString([],{day:"2-digit",month:"long",year:"numeric"}))}</b></div>
+        <div style="font-size:10px;color:#66726c">Generated ${esc(fmtFull(Date.now()))} by ${esc(getMyDeviceName())}${localStorage.getItem("p10_login_email")?" ("+esc(localStorage.getItem("p10_login_email"))+")":""}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        ${stat(cnt("signin"),"Sign-ins")}${stat(cnt("wrong"),"Wrong password attempts")}${stat(cnt("allow")+cnt("deny"),"Allow / deny actions")}${stat(cnt("sent"),"Times messages were sent")}${stat(devRows.length,"Devices with activity")}
+      </div>
+      <div style="font-size:14px;font-weight:700;margin:6px 0 6px">Day-by-day activity</div>`;
+    if(!dayKeys.length)h+=`<p style="font-size:11px;color:#66726c">No activity was recorded between these dates.</p>`;
+    dayKeys.forEach(k=>{
+      const ev=days[k];
+      h+=`<div class="nobreak" style="margin-bottom:12px"><div style="background:#eceee9;padding:6px 8px;font-weight:700;font-size:12px;border-left:4px solid #0f6b5c">${esc(fmtDay(ev[0].t))} <span style="font-weight:400;color:#66726c">· ${ev.length} event${ev.length===1?"":"s"}</span></div>
+      <table style="width:100%;border-collapse:collapse"><thead><tr><th ${th} width="14%">Time</th><th ${th} width="19%">Event</th><th ${th} width="20%">Device</th><th ${th} width="19%">Email</th><th ${th}>Details</th></tr></thead><tbody>`;
+      ev.forEach(e=>{const m=EV[e.type]||[e.type,"#17211d"];
+        h+=`<tr><td ${td}>${esc(fmtClock(e.t))}</td><td ${td}><b style="color:${m[1]}">${esc(m[0])}</b></td><td ${td}>${esc(e.name)||"-"}</td><td ${td}>${esc(e.email)||"-"}</td><td ${td}>${esc(e.detail)||"-"}</td></tr>`});
+      h+=`</tbody></table></div>`;
+    });
+    h+=`<div style="font-size:14px;font-weight:700;margin:16px 0 6px">Device details</div>`;
+    if(!devRows.length)h+=`<p style="font-size:11px;color:#66726c">No devices were active in this period.</p>`;
+    else{
+      h+=`<table style="width:100%;border-collapse:collapse"><thead><tr><th ${th}>Device</th><th ${th}>Email</th><th ${th}>Role</th><th ${th}>Status</th><th ${th}>First seen</th><th ${th}>Last active</th><th ${th}>Browser / platform</th></tr></thead><tbody>`;
+      devRows.forEach(d=>{
+        const role=d.isCoOwner?"Co-owner":d.isAdmin?"Owner":"User";
+        h+=`<tr class="nobreak"><td ${td}><b>${esc(d.name||"Unknown device")}</b></td><td ${td}>${esc(d.email)||"-"}</td><td ${td}>${role}</td><td ${td}>${esc(d.status||"-")}</td><td ${td}>${esc(fmtFull(d.firstSeen))}</td><td ${td}>${esc(fmtFull(d.lastSeen))}</td><td ${td} ><span style="font-size:8px;color:#66726c">${esc((d.platform?d.platform+" · ":"")+(d.userAgent||""))}</span></td></tr>`});
+      h+=`</tbody></table>`;
+    }
+    h+=`<p style="font-size:9px;color:#66726c;margin-top:14px">Sign-in, approval, wrong-password and message events are recorded as they happen. Entries marked "Device first seen" or "Access decision" were rebuilt from device records for dates before detailed logging started.</p></div>`;
+    wrap=document.createElement("div");wrap.style.cssText="position:fixed;left:0;top:0;background:#fff;z-index:-1;width:760px";wrap.innerHTML=h;document.body.appendChild(wrap);
+    try{await document.fonts.ready}catch(e){}
+    await html2pdf().set({
+      margin:[10,8,14,8],filename:"LED-sign-history_"+f+"_to_"+t+".pdf",image:{type:"jpeg",quality:.96},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:"#ffffff",scrollY:0},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"],avoid:[".nobreak","tr"]}
+    }).from(wrap).toPdf().get("pdf").then(pdf=>{
+      const n=pdf.internal.getNumberOfPages(),W=pdf.internal.pageSize.getWidth(),H=pdf.internal.pageSize.getHeight();
+      for(let i=1;i<=n;i++){pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(120);pdf.text("Page "+i+" of "+n,W-8,H-6,{align:"right"});pdf.text("LED Sign Controller · "+f+" to "+t,8,H-6)}
+    }).save();
+    showToast("History PDF downloaded.");
+  }catch(err){console.error(err);showToast("Couldn't create the PDF: "+err.message,true)}
+  finally{if(wrap)wrap.remove();btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-download"></i> Download PDF'}
+}
+$("btnHistPdf").onclick=downloadHistory;
 
 /* ---------- load / save ---------- */
 function setDirty(v){
@@ -798,7 +815,6 @@ function loadConfig(){
       else if(v.font)styles=messages.map(()=>({f:v.font,p:+v.fontPx||12,b:v.fontBold!==false,y:+v.yOff||0}));
     }
     renderList();restartSim();setDirty(false);
-    if(localStorage.getItem("p10_req")&&!myIsAdmin)showNote("wait",WAIT_HTML);
     Promise.all(styles.map(x=>loadFont(x.f))).then(()=>{restartSim();paintPreview()});
   },err=>{console.error(err);renderList();restartSim();showToast("Couldn't load the sign's settings.",true)});
 }
@@ -810,17 +826,11 @@ async function save(){
   const b=$("btnSaveFirebase");b.disabled=true;b.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> Sending…';
   try{
     const bitmaps=await Promise.all(messages.map((m,i)=>rasterize(m,styles[i])));
-    const payload={speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,styles};
-    if(myIsAdmin){
-      await db.ref("p10_config").set(Object.assign({},payload,{lastUpdated:Date.now()}));
-      logSent(payload);
-      showToast("Sent to the sign.");renderList();restartSim();setDirty(false);
-    }else{
-      await submitRequest(payload);
-      showToast("Sent to the owner. It goes on the sign after the owner allows it.");renderList();restartSim();setDirty(false);showNote("wait",WAIT_HTML);
-    }
+    await db.ref("p10_config").set({speed:speedMs,delayBetween:Math.round(delaySec*1000),messages,bitmaps,styles,lastUpdated:Date.now()});
+    logEvent("sent",messages.map((m,i)=>(i+1)+". "+m+" ["+(styles[i]?styles[i].f:"")+"]").join("   |   ")+"   (speed "+speedMs+" ms, pause "+delaySec.toFixed(1)+" s)");
+    showToast("Sent to the sign.");renderList();restartSim();setDirty(false);
   }catch(err){showToast("Couldn't send: "+err.message,true)}
-  finally{b.disabled=false;b.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> '+(myIsAdmin?"Send to sign":"Send for approval")}
+  finally{b.disabled=false;b.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> Send to sign'}
 }
 /* ---------- per-message text style + bitmap rendering ----------
    The browser draws each message with its own font into a 16-pixel-high bitmap,
@@ -959,7 +969,7 @@ list.addEventListener("click",e=>{
   else{const t=i+(a==="up"?-1:1);if(t<0||t>=messages.length)return;[messages[i],messages[t]]=[messages[t],messages[i]];[styles[i],styles[t]]=[styles[t],styles[i]];if(previewIdx===i)previewIdx=t}
   renderList();setDirty(true);restartSim();
 });
-function esc(t){return String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#039;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function esc(t){return String(t==null?"":t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#039;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
 /* ---------- LED preview ---------- */
 function markPlaying(){[...list.children].forEach((r,i)=>r.classList.toggle("playing",i===simIndex))}
