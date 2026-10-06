@@ -135,6 +135,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
 .quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
 .quick button{padding:6px 11px;font-size:.76rem;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600}
 .quick button:hover{background:var(--bg)}
+.sm.b{background:var(--brand)}.sm.k{background:var(--ink)}
 .about-list{text-align:left;margin-top:16px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .about-item{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--line)}
 .about-item:last-child{border-bottom:0}
@@ -200,6 +201,7 @@ input[type=range]{width:100%;accent-color:var(--brand)}
         <div class="menu hidden" id="settingsMenu" role="menu">
           <button class="mi hidden" id="btnActive" role="menuitem"><span><span class="dot"></span>Active users</span><span class="count" id="activeCount" style="background:var(--ok)">0</span></button>
           <button class="mi hidden" id="btnDevices" role="menuitem"><span><i class="fa-solid fa-laptop-mobile"></i>Devices &amp; history</span><span class="count hidden" id="devBtnCount">0</span></button>
+          <button class="mi hidden" id="btnDownloads" role="menuitem"><span><i class="fa-solid fa-download"></i>Downloads</span><span class="count hidden" id="dlCount" style="background:var(--ok)">0</span></button>
           <button class="mi hidden" id="btnPasswords" role="menuitem"><span><i class="fa-solid fa-key"></i>Password</span></button>
           <button class="mi" id="btnAbout" role="menuitem"><span><i class="fa-solid fa-circle-info"></i>About app</span></button>
           <button class="mi out" id="btnLogout" role="menuitem"><span><i class="fa-solid fa-right-from-bracket"></i>Sign out</span></button>
@@ -293,16 +295,23 @@ input[type=range]{width:100%;accent-color:var(--brand)}
   </div>
 </div>
 
+<div class="overlay hidden" id="dlOverlay">
+  <div class="drawer" role="dialog" aria-label="Downloads">
+    <div class="sec-head"><h2><i class="fa-solid fa-download" style="margin-right:6px;color:var(--brand)"></i>Downloads</h2><button class="ib" id="dlClose" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+    <p class="sub">History PDFs you downloaded are kept here on this device. Open one, share it, or save it to your phone again.</p>
+    <div id="dlList"></div>
+  </div>
+</div>
+
 <div class="alert-ov hidden" id="pdfModal" style="z-index:2600">
   <div class="alert-box" style="border-top-color:var(--ok);max-height:92vh;overflow:auto" role="dialog" aria-label="PDF ready">
     <div class="ico" style="font-size:2rem;color:var(--ok);margin-bottom:6px"><i class="fa-solid fa-file-pdf"></i></div>
     <h2>PDF saved</h2>
     <div class="chip" id="pdfName" style="word-break:break-all">history.pdf</div>
-    <p class="sub">It was saved to your phone's <b>Downloads</b> folder. Open the <b>Files</b> app and look in Downloads.</p>
-    <p class="sub" style="margin-top:8px">To choose another folder (or Google Drive), tap Share and pick "Save to Files" or "Save to Drive".</p>
+    <p class="sub">Saved in this app under <b>Settings → Downloads</b>, and also to your phone's <b>Downloads</b> folder (open the Files app).</p>
     <div class="btns" style="flex-direction:column">
-      <button style="background:var(--brand)" id="pdfShare"><i class="fa-solid fa-share-nodes"></i> Share / Save to Files</button>
-      <button style="background:var(--ink)" id="pdfSaveAgain"><i class="fa-solid fa-download"></i> Save again to Downloads</button>
+      <button style="background:var(--brand)" id="pdfShare"><i class="fa-solid fa-share-nodes"></i> Share</button>
+      <button style="background:var(--ink)" id="pdfOpenDl"><i class="fa-solid fa-folder-open"></i> Open Downloads</button>
       <button style="background:var(--muted)" id="pdfClose">Close</button>
     </div>
   </div>
@@ -523,7 +532,7 @@ function unlockDashboard(){
   startPresence();
   if(myIsAdmin)startAdminListeners();
   updateCoInfo();startVerWatch();clearInterval(coT);coT=setInterval(checkCoExpiry,30000);
-  loadConfig();
+  refreshDlCount();loadConfig();
 }
 function lockDashboard(){
   isUnlocked=false;closeMenu();$("newPwModal").classList.add("hidden");stopPresence();stopVerWatch();clearInterval(coT);clearInterval(simTimer);clearTimeout(simDelay);stopAdminListeners();loginPassword.value="";
@@ -606,6 +615,7 @@ function revokeCo(d){
 }
 function updateCoInfo(){
   $("btnPasswords").classList.toggle("hidden",!myIsMain);
+  $("btnDownloads").classList.toggle("hidden",!myIsAdmin);
   checkPwPrompt();
   const el=$("coInfo");
   if(myCoUntil){el.textContent="Co-owner until "+new Date(myCoUntil).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});el.classList.remove("hidden")}
@@ -810,6 +820,8 @@ async function downloadHistory(){
     for(let i=1;i<=n;i++){pdf.setPage(i);pdf.setFontSize(8);pdf.setTextColor(120);pdf.text("Page "+i+" of "+n,W-8,H-6,{align:"right"});pdf.text("LED Sign Controller · "+f+" to "+t,8,H-6)}
     pdfBlob=pdf.output("blob");pdfName=fname;
     saveBlob(pdfBlob,pdfName);
+    try{await dlAdd({name:fname,blob:pdfBlob,created:Date.now(),from:f,to:t,size:pdfBlob.size,by:getMyDeviceName()});refreshDlCount()}
+    catch(e){console.warn(e);showToast("The PDF went to your phone, but this browser can't keep a copy in Downloads.",true)}
     showPdfReady();
   }catch(err){console.error(err);showToast("Couldn't create the PDF: "+err.message,true)}
   finally{if(wrap)wrap.remove();btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-download"></i> Download PDF'}
@@ -825,25 +837,77 @@ function saveBlob(blob,name){
   a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(u),60000);
 }
-function canShareFile(){
+function sharePdf(blob,name){
   try{
-    if(!pdfBlob||!navigator.canShare||!navigator.share)return false;
-    return navigator.canShare({files:[new File([pdfBlob],pdfName,{type:"application/pdf"})]});
-  }catch(e){return false}
+    const file=new File([blob],name,{type:"application/pdf"});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:name}).catch(()=>{});
+    }else showToast("Sharing isn't supported in this browser. Tap Save, then share the file from your Files app.",true);
+  }catch(e){showToast("Couldn't share: "+e.message,true)}
 }
 function showPdfReady(){
   $("pdfName").textContent=pdfName;
-  $("pdfShare").classList.toggle("hidden",!canShareFile());
   $("pdfModal").classList.remove("hidden");
 }
-$("pdfSaveAgain").onclick=()=>{if(pdfBlob){saveBlob(pdfBlob,pdfName);showToast("Saved to your Downloads.")}};
-$("pdfShare").onclick=()=>{
-  if(!pdfBlob)return;
-  navigator.share({files:[new File([pdfBlob],pdfName,{type:"application/pdf"})],title:pdfName}).catch(()=>{});
-};
+$("pdfShare").onclick=()=>pdfBlob&&sharePdf(pdfBlob,pdfName);
+$("pdfOpenDl").onclick=()=>{$("pdfModal").classList.add("hidden");openDownloads()};
 $("pdfClose").onclick=()=>$("pdfModal").classList.add("hidden");
 $("pdfModal").addEventListener("click",e=>{if(e.target===$("pdfModal"))$("pdfModal").classList.add("hidden")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("pdfModal").classList.add("hidden")});
+
+/* ---------- Downloads section: PDFs are kept inside the app (IndexedDB, on this device) ---------- */
+let dlDb=null;
+function dlOpen(){
+  return new Promise((res,rej)=>{
+    if(dlDb)return res(dlDb);
+    if(!window.indexedDB)return rej(new Error("Storage is not available in this browser"));
+    const r=indexedDB.open("p10_downloads",1);
+    r.onupgradeneeded=()=>{r.result.createObjectStore("pdfs",{keyPath:"id",autoIncrement:true})};
+    r.onsuccess=()=>{dlDb=r.result;res(dlDb)};
+    r.onerror=()=>rej(r.error||new Error("Storage error"));
+  });
+}
+function dlAdd(rec){
+  return dlOpen().then(d=>new Promise((res,rej)=>{
+    const tx=d.transaction("pdfs","readwrite"),rq=tx.objectStore("pdfs").add(rec);
+    tx.oncomplete=()=>res(rq.result);tx.onerror=()=>rej(tx.error||new Error("Couldn't save"));
+  }));
+}
+function dlAll(){
+  return dlOpen().then(d=>new Promise((res,rej)=>{
+    const rq=d.transaction("pdfs").objectStore("pdfs").getAll();
+    rq.onsuccess=()=>res(rq.result||[]);rq.onerror=()=>rej(rq.error||new Error("Couldn't read"));
+  }));
+}
+async function refreshDlCount(){
+  try{const n=(await dlAll()).length;$("dlCount").textContent=n;$("dlCount").classList.toggle("hidden",!n)}catch(e){}
+}
+const fmtSize=b=>b>1048576?(b/1048576).toFixed(1)+" MB":Math.max(1,Math.round(b/1024))+" KB";
+const fmtDate=s=>new Date(s+"T00:00:00").toLocaleDateString([],{day:"2-digit",month:"short",year:"numeric"});
+async function openDownloads(){
+  $("dlOverlay").classList.remove("hidden");
+  const box=$("dlList");box.innerHTML='<p class="sub" style="margin-top:14px">Loading…</p>';
+  let rows=[];
+  try{rows=await dlAll()}catch(e){box.innerHTML='<p class="sub" style="margin-top:14px">This browser cannot keep downloads inside the app (private browsing can block it). The PDF still goes to your phone\'s Downloads folder.</p>';return}
+  rows.sort((a,b)=>b.created-a.created);
+  $("dlCount").textContent=rows.length;$("dlCount").classList.toggle("hidden",!rows.length);
+  box.innerHTML="";
+  if(!rows.length){box.innerHTML='<p class="sub" style="margin-top:14px">No PDFs yet. Download a history PDF from Devices &amp; history and it will be saved here.</p>';return}
+  rows.forEach(r=>{
+    const el=document.createElement("div");el.className="dev";
+    el.innerHTML=`<div style="min-width:0;flex:1 1 220px"><div class="dev-n"><i class="fa-solid fa-file-pdf" style="color:var(--danger)"></i><span style="word-break:break-all">${esc(r.name)}</span></div><div class="dev-m">History ${esc(fmtDate(r.from))} to ${esc(fmtDate(r.to))}<br>Saved ${esc(fmtFull(r.created))} · ${esc(fmtSize(r.size||0))}${r.by?" · "+esc(r.by):""}</div></div><div class="acts" style="display:flex;gap:6px;flex-wrap:wrap"></div>`;
+    const a=el.querySelector(".acts");
+    const mk=(cls,html,fn)=>{const b=document.createElement("button");b.className="sm "+cls;b.innerHTML=html;b.onclick=fn;a.appendChild(b)};
+    mk("b",'<i class="fa-solid fa-eye"></i> Open',()=>{const u=URL.createObjectURL(r.blob),w=window.open(u,"_blank");if(!w)showToast("Couldn't open it here. Tap Save instead.",true);setTimeout(()=>URL.revokeObjectURL(u),120000)});
+    mk("a",'<i class="fa-solid fa-share-nodes"></i> Share',()=>sharePdf(r.blob,r.name));
+    mk("k",'<i class="fa-solid fa-download"></i> Save',()=>{saveBlob(r.blob,r.name);showToast("Saved to your phone's Downloads.")});
+    box.appendChild(el);
+  });
+}
+$("btnDownloads").onclick=openDownloads;
+$("dlClose").onclick=()=>$("dlOverlay").classList.add("hidden");
+$("dlOverlay").addEventListener("click",e=>{if(e.target===$("dlOverlay"))$("dlOverlay").classList.add("hidden")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("dlOverlay").classList.add("hidden")});
 
 /* ---------- load / save ---------- */
 function setDirty(v){
